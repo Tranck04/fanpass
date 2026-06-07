@@ -39,6 +39,21 @@ ${cssLinks}
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Minimal TanStack Start bootstrap data required by the client-side
+      // hydrate() function. Without this, the SPA build throws "Invariant failed"
+      // because window.$_TSR is expected to exist (normally injected by SSR).
+      window.$_TSR = {
+        router: {
+          matches: [],
+          manifest: void 0,
+          dehydratedData: void 0,
+          lastMatchId: void 0,
+        },
+        buffer: [],
+        h: function () {},
+      };
+    </script>
     <script type="module" src="/assets/${jsFile}"></script>
   </body>
 </html>`;
