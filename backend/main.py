@@ -25,7 +25,7 @@ allowed_origins = [
     origin.strip()
     for origin in os.getenv(
         "FANPASS_CORS_ORIGINS",
-        "http://localhost:3000,http://localhost:5173,http://localhost:3001",
+        "http://localhost:3000,http://localhost:5173,http://localhost:3001,http://localhost:4173,http://localhost:4174,http://localhost:4175",
     ).split(",")
     if origin.strip()
 ]

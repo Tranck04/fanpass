@@ -12,4 +12,7 @@ services:
         generateValue: true
       - key: QR_SECRET_KEY
         generateValue: true
+      - key: FANPASS_CORS_ORIGINS
+        # Remplace par ton vrai domaine custom quand tu l'auras
+        value: "https://fanpass-app.netlify.app/"
     plan: free
