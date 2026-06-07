@@ -63,6 +63,11 @@ class ProfileResponse(BaseModel):
     fan_id_status: str
     document_type: Optional[str]
     document_number: Optional[str]
+    first_name_locked: bool = False
+    last_name_locked: bool = False
+    nationality_locked: bool = False
+    document_number_locked: bool = False
+    date_of_birth: Optional[str] = None
     avatar_initials: str
     created_at: datetime
 
@@ -112,3 +117,16 @@ class FanIdStatusResponse(BaseModel):
     document_type: Optional[str]
     document_number: Optional[str]
     can_verify: bool
+    first_name_locked: bool = False
+    last_name_locked: bool = False
+    nationality_locked: bool = False
+
+
+class MrzScanResponse(BaseModel):
+    first_name: str
+    last_name: str
+    nationality: str
+    document_number: str
+    document_type: str
+    date_of_birth: Optional[str] = None
+    mrz_confidence: float = 0.0

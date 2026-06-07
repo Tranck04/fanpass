@@ -2,7 +2,9 @@ import { Q as QueryClient } from "../_libs/tanstack__query-core.mjs";
 import { Q as QueryClientProvider } from "../_libs/tanstack__react-query.mjs";
 import { c as createRouter, a as createRootRouteWithContext, u as useRouter, L as Link, O as Outlet, H as HeadContent, S as Scripts, b as createFileRoute } from "../_libs/tanstack__react-router.mjs";
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
-import { A as ArrowLeft, U as UserPlus, a as User, M as Mail, L as LockKeyhole, G as Globe, S as Star, b as Users, c as LogIn, E as EyeOff, d as Eye, W as WalletCards, N as Navigation, D as DoorOpen, e as ShoppingBag, f as MapPin, g as Ellipsis, h as LifeBuoy, H as Handshake, T as Ticket, i as ArrowRight, C as Clock, j as Activity, k as ShieldCheck, Z as Zap, l as Sparkles, I as IdCard, m as Camera, n as Check, B as BadgeCheck, o as ChevronRight, F as FingerprintPattern, p as ScanLine, q as CalendarDays, X, r as Minus, P as Plus, s as ChevronLeft, t as TramFront, u as Car, v as Bus, R as RefreshCw, w as Utensils, x as HeartPulse, y as Accessibility, z as Bell, J as TriangleAlert, K as Info, O as SlidersHorizontal, Q as Languages, V as BadgePercent, Y as ShoppingCart, _ as Truck, $ as Siren, a0 as ShieldAlert, a1 as Phone, a2 as UserRoundSearch, a3 as BadgeQuestionMark, a4 as FileExclamationPoint, a5 as Flame, a6 as Hospital, a7 as Pill, a8 as CircleQuestionMark, a9 as Hotel, aa as Crown, ab as Trophy, ac as CircleCheck } from "../_libs/lucide-react.mjs";
+import { L } from "../_libs/leaflet.mjs";
+import { A as ArrowLeft, U as UserPlus, a as User, M as Mail, L as LockKeyhole, G as Globe, S as Star, b as Users, c as LogIn, E as EyeOff, d as Eye, W as WalletCards, e as Upload, T as Ticket, f as ScanLine, N as Navigation, D as DoorOpen, g as ShoppingBag, h as MapPin, i as Ellipsis, j as LifeBuoy, H as Handshake, k as ArrowRight, C as Clock, l as Activity, m as ShieldCheck, Z as Zap, n as Sparkles, I as IdCard, o as Camera, p as Check, B as BadgeCheck, q as ChevronRight, r as Hash, Q as QrCode, F as FileText, s as CircleX, t as ShieldAlert, u as TriangleAlert, v as CircleCheck, w as Search, x as Gift, y as FingerprintPattern, z as CalendarDays, X, J as Minus, P as Plus, K as ChevronLeft, O as Send, R as Copy, V as RefreshCw, Y as Utensils, _ as HeartPulse, $ as Accessibility, a0 as Bell, a1 as Info, a2 as Languages, a3 as Flame, a4 as BadgePercent, a5 as ShoppingCart, a6 as Siren, a7 as Phone, a8 as UserRoundSearch, a9 as BadgeQuestionMark, aa as FileExclamationPoint, ab as TramFront, ac as Bus, ad as Car, ae as Trophy, af as Truck, ag as Hospital, ah as Pill, ai as CircleQuestionMark, aj as Hotel, ak as Crown } from "../_libs/lucide-react.mjs";
+import { M as MapContainer, T as TileLayer, a as Marker, P as Popup, b as Polyline, u as useMap } from "../_libs/react-leaflet.mjs";
 import "../_libs/tanstack__router-core.mjs";
 import "../_libs/tanstack__history.mjs";
 import "../_libs/cookie-es.mjs";
@@ -16,7 +18,19 @@ import "crypto";
 import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
+import "../_libs/react-leaflet__core.mjs";
 const API_BASE = "http://localhost:8000/api";
+async function fanpassFetch(path, token, options = {}) {
+  const headers = new Headers(options.headers);
+  if (!headers.has("Content-Type") && options.body) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers
+  });
+}
 const STORAGE_KEY$1 = "fanpass:auth:v1";
 const AuthContext = reactExports.createContext(null);
 function readStoredAuth() {
@@ -187,7 +201,7 @@ function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
-const appCss = "/assets/styles-CWzP-xYD.css";
+const appCss = "/assets/styles-DUlMHffY.css";
 function NotFoundComponent() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex min-h-screen items-center justify-center bg-background px-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-md text-center", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-7xl font-bold text-foreground", children: "404" }),
@@ -394,6 +408,484 @@ function SectionTitle({
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: eyebrow }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "font-display text-2xl font-semibold mt-1", children: title })
   ] });
+}
+function ImportTicketView({
+  onBack,
+  onImported
+}) {
+  const { token } = useAuth();
+  const [tab, setTab] = reactExports.useState("ref");
+  const [reference, setReference] = reactExports.useState("");
+  const [qrData, setQrData] = reactExports.useState("");
+  const [loading, setLoading] = reactExports.useState(false);
+  const [error, setError] = reactExports.useState("");
+  const [success, setSuccess] = reactExports.useState(false);
+  async function handleImport() {
+    setError("");
+    setLoading(true);
+    try {
+      const body = tab === "ref" ? { type: "ref", reference } : { type: "qr", qr_data: qrData };
+      const res = await fanpassFetch("/tickets/import", token, {
+        method: "POST",
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Erreur d'import");
+      }
+      setSuccess(true);
+      setTimeout(() => {
+        onImported();
+      }, 1200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau");
+    } finally {
+      setLoading(false);
+    }
+  }
+  if (success) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col items-center justify-center gap-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-20 w-20 rounded-full bg-success/15 grid place-items-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "h-10 w-10 text-success" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-xl font-semibold", children: "Billet importé !" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-muted-foreground", children: "Redirection vers votre wallet..." })
+    ] });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "sticky top-0 z-40 glass border-b border-white/5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mx-auto max-w-md px-5 py-3 flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: onBack,
+          className: "inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition text-sm",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "h-4 w-4" }),
+            " Retour"
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Logo, {}),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-8" })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "flex-1 mx-auto w-full max-w-md px-5 pt-8 pb-8 space-y-6", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-16 w-16 mx-auto place-items-center rounded-2xl bg-primary/15 mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Upload, { className: "h-8 w-8 text-primary-glow" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "font-display text-2xl font-semibold", children: "Importer un billet" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-2 text-sm text-muted-foreground", children: "Billet acheté ailleurs ? Importez-le dans votre wallet FanPass." })
+      ] }),
+      error && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-2xl bg-destructive/15 text-destructive px-4 py-3 text-sm", children: error }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 rounded-2xl bg-white/5 p-1", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: () => setTab("ref"),
+            className: `rounded-xl px-2 py-3 text-xs font-semibold transition flex items-center justify-center gap-2 ${tab === "ref" ? "bg-primary text-primary-foreground shadow-elevated" : "text-muted-foreground hover:text-foreground"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Hash, { className: "h-4 w-4" }),
+              " Référence"
+            ]
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: () => setTab("qr"),
+            className: `rounded-xl px-2 py-3 text-xs font-semibold transition flex items-center justify-center gap-2 ${tab === "qr" ? "bg-primary text-primary-foreground shadow-elevated" : "text-muted-foreground hover:text-foreground"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(QrCode, { className: "h-4 w-4" }),
+              " QR Code"
+            ]
+          }
+        )
+      ] }),
+      tab === "ref" ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5 space-y-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-4", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-6 w-6 text-primary-glow" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold", children: "Référence de billet" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-xs text-muted-foreground", children: "Saisissez la référence reçue par email ou sur votre billet officiel." })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "text",
+            value: reference,
+            onChange: (e) => setReference(e.target.value),
+            placeholder: "Ex: WC2030-MAR-ESP-A0042",
+            className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40"
+          }
+        )
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5 space-y-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-4", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(QrCode, { className: "h-6 w-6 text-primary-glow" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold", children: "Scanner un QR" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-xs text-muted-foreground", children: "Collez les données du QR code scanné depuis votre billet officiel." })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "textarea",
+          {
+            value: qrData,
+            onChange: (e) => setQrData(e.target.value),
+            placeholder: "Collez les données du QR ici...",
+            rows: 3,
+            className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 resize-none"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            type: "button",
+            onClick: () => setError(
+              "Scan camera non branche dans ce prototype : collez les donnees du QR."
+            ),
+            className: "w-full rounded-2xl border border-dashed border-white/15 bg-white/5 py-8 text-sm text-muted-foreground hover:bg-white/10 transition flex flex-col items-center gap-2",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(QrCode, { className: "h-8 w-8" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "Scanner avec la caméra" })
+            ]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: handleImport,
+          disabled: loading || (tab === "ref" ? !reference : !qrData),
+          className: "w-full rounded-2xl bg-primary py-4 text-sm font-medium text-primary-foreground glow-primary transition hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed",
+          children: loading ? "Importation..." : "Importer le billet"
+        }
+      )
+    ] })
+  ] });
+}
+function AcceptTransferView({
+  onBack,
+  onAccepted
+}) {
+  const { token } = useAuth();
+  const [code, setCode] = reactExports.useState("");
+  const [loading, setLoading] = reactExports.useState(false);
+  const [error, setError] = reactExports.useState("");
+  const [success, setSuccess] = reactExports.useState(false);
+  async function handleAccept() {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fanpassFetch(
+        `/tickets/transfer/accept/${code.toUpperCase()}`,
+        token,
+        { method: "POST" }
+      );
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Code invalide");
+      }
+      setSuccess(true);
+      setTimeout(onAccepted, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau");
+    } finally {
+      setLoading(false);
+    }
+  }
+  if (success) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col items-center justify-center gap-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-20 w-20 rounded-full bg-success/15 grid place-items-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "h-10 w-10 text-success" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-xl font-semibold", children: "Billet reçu !" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-muted-foreground", children: "Le billet a été ajouté à votre wallet." })
+    ] });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "sticky top-0 z-40 glass border-b border-white/5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mx-auto max-w-md px-5 py-3 flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: onBack,
+          className: "inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition text-sm",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "h-4 w-4" }),
+            " Retour"
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Logo, {}),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-8" })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "flex-1 mx-auto w-full max-w-md px-5 pt-12 pb-8 flex flex-col justify-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center mb-8", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-16 w-16 mx-auto place-items-center rounded-2xl bg-success/15 mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Gift, { className: "h-8 w-8 text-success" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "font-display text-2xl font-semibold", children: "Accepter un billet" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-2 text-sm text-muted-foreground", children: "Quelqu'un vous a transféré un billet ? Saisissez le code reçu." })
+      ] }),
+      error && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-2xl bg-destructive/15 text-destructive px-4 py-3 text-sm mb-4", children: error }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5 space-y-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block", children: "Code de transfert" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            type: "text",
+            value: code,
+            onChange: (e) => setCode(e.target.value.toUpperCase()),
+            placeholder: "ABCD1234",
+            maxLength: 8,
+            className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-4 text-center font-mono text-2xl tracking-[0.3em] placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary/40 uppercase"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: handleAccept,
+          disabled: loading || code.length < 8,
+          className: "mt-6 w-full rounded-2xl bg-primary py-4 text-sm font-medium text-primary-foreground glow-primary transition hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed",
+          children: loading ? "Vérification..." : "Accepter le billet"
+        }
+      )
+    ] })
+  ] });
+}
+function ScanView({ onBack }) {
+  const { token } = useAuth();
+  const [qrInput, setQrInput] = reactExports.useState("");
+  const [gateId, setGateId] = reactExports.useState("gate-c");
+  const [loading, setLoading] = reactExports.useState(false);
+  const [result, setResult] = reactExports.useState(null);
+  async function handleScan() {
+    setLoading(true);
+    try {
+      const res = await fanpassFetch("/scan/validate", token, {
+        method: "POST",
+        body: JSON.stringify({
+          qr_raw: qrInput,
+          gate_id: gateId,
+          device_id: "demo-scanner"
+        })
+      });
+      const data = await res.json();
+      setResult(data);
+    } catch {
+      setResult({
+        result: "invalid_ticket",
+        message: "Erreur réseau",
+        ticket_id: null,
+        gate_id: gateId,
+        scanned_at: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+  const resultIcon = {
+    access_granted: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheck, { className: "h-12 w-12 text-success" }),
+    wrong_gate: /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "h-12 w-12 text-primary-glow" }),
+    already_used: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "h-12 w-12 text-destructive" }),
+    invalid_ticket: /* @__PURE__ */ jsxRuntimeExports.jsx(ShieldAlert, { className: "h-12 w-12 text-destructive" }),
+    ticket_cancelled: /* @__PURE__ */ jsxRuntimeExports.jsx(CircleX, { className: "h-12 w-12 text-destructive" })
+  }[result?.result ?? ""] ?? /* @__PURE__ */ jsxRuntimeExports.jsx(Search, { className: "h-12 w-12 text-muted-foreground" });
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "sticky top-0 z-40 glass border-b border-white/5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mx-auto max-w-md px-5 py-3 flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: onBack,
+          className: "inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition text-sm",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "h-4 w-4" }),
+            " Retour"
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Logo, {}),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-8" })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "flex-1 mx-auto w-full max-w-md px-5 pt-8 pb-8 space-y-6", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-16 w-16 mx-auto place-items-center rounded-2xl bg-primary/15 mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ScanLine, { className: "h-8 w-8 text-primary-glow" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "font-display text-2xl font-semibold", children: "Scan billet" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-2 text-sm text-muted-foreground", children: "Simulation du scanner à l'entrée du stade." })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5 space-y-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block mb-2", children: "QR Payload (coller)" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "textarea",
+            {
+              value: qrInput,
+              onChange: (e) => setQrInput(e.target.value),
+              placeholder: '{"ticket_id":"...","fan_id":"...","gate_code":"C",...}',
+              rows: 3,
+              className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-xs font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 resize-none"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block mb-2", children: "Gate ID" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: gateId,
+              onChange: (e) => setGateId(e.target.value),
+              className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary/40",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "gate-c", children: "Gate C - Nord" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "gate-e", children: "Gate E - Est" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "gate-b", children: "Gate B - Sud" })
+              ]
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: handleScan,
+          disabled: loading || !qrInput,
+          className: "w-full rounded-2xl bg-primary py-4 text-sm font-medium text-primary-foreground glow-primary transition hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(ScanLine, { className: "h-4 w-4" }),
+            loading ? "Scan en cours..." : "Scanner le billet"
+          ]
+        }
+      ),
+      result && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: `rounded-3xl p-6 text-center ${result.result === "access_granted" ? "bg-success/10 ring-1 ring-success/30" : result.result === "wrong_gate" ? "bg-primary/10 ring-1 ring-primary/30" : "bg-destructive/10 ring-1 ring-destructive/30"}`,
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid place-items-center mb-3", children: resultIcon }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-xl font-semibold", children: result.message }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 space-y-1 text-xs text-muted-foreground", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                "Résultat :",
+                " ",
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-mono font-semibold", children: result.result })
+              ] }),
+              result.ticket_id && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                "Ticket : ",
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-mono", children: result.ticket_id })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                "Scanné à :",
+                " ",
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: new Date(result.scanned_at).toLocaleTimeString("fr-FR") })
+              ] })
+            ] })
+          ]
+        }
+      )
+    ] })
+  ] });
+}
+function TransferModal({
+  ticketId,
+  ticketTitle,
+  onClose
+}) {
+  const { token } = useAuth();
+  const [email, setEmail] = reactExports.useState("");
+  const [loading, setLoading] = reactExports.useState(false);
+  const [error, setError] = reactExports.useState("");
+  const [result, setResult] = reactExports.useState(null);
+  const [copied, setCopied] = reactExports.useState(false);
+  async function handleTransfer() {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fanpassFetch(`/tickets/${ticketId}/transfer`, token, {
+        method: "POST",
+        body: JSON.stringify({ to_email: email })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Erreur de transfert");
+      }
+      const data = await res.json();
+      setResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau");
+    } finally {
+      setLoading(false);
+    }
+  }
+  function copyCode() {
+    if (result) {
+      navigator.clipboard.writeText(result.transfer_code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2e3);
+    }
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 z-50 flex items-end justify-center bg-background/80 px-3 pb-3 backdrop-blur-sm", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full max-w-md rounded-3xl border border-white/10 bg-background p-5 shadow-elevated", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Transférer un billet" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "mt-1 font-display text-lg font-semibold", children: ticketTitle })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: onClose,
+          className: "rounded-full bg-white/5 p-2 text-muted-foreground",
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "h-5 w-5" })
+        }
+      )
+    ] }),
+    error && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4 rounded-2xl bg-destructive/15 text-destructive px-4 py-3 text-sm", children: error }),
+    !result ? /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-5", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block mb-2", children: "Email du destinataire" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Send, { className: "absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              type: "email",
+              value: email,
+              onChange: (e) => setEmail(e.target.value),
+              placeholder: "danielle@email.com",
+              className: "w-full rounded-2xl bg-white/5 border border-white/10 pl-11 pr-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4 rounded-2xl bg-primary/10 p-4 text-xs text-muted-foreground", children: "Le destinataire recevra un code de transfert valable 24h. Il devra avoir un compte FanPass pour accepter le billet." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: handleTransfer,
+          disabled: loading || !email,
+          className: "mt-5 w-full rounded-2xl bg-primary py-4 text-sm font-medium text-primary-foreground glow-primary disabled:opacity-50 disabled:cursor-not-allowed",
+          children: loading ? "Transfert..." : "Envoyer le billet"
+        }
+      )
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-5 space-y-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-2xl bg-success/15 p-5 text-center", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm text-success font-semibold mb-2", children: "✅ Transfert initié" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-muted-foreground mb-3", children: "Communiquez ce code au destinataire :" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-mono text-2xl font-bold tracking-[0.2em] text-foreground", children: result.transfer_code }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: copyCode,
+            className: "mt-3 inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-xs font-medium",
+            children: [
+              copied ? /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "h-4 w-4 text-success" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Copy, { className: "h-4 w-4" }),
+              copied ? "Copié !" : "Copier le code"
+            ]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: onClose,
+          className: "w-full rounded-2xl bg-white/5 py-3 text-sm font-medium",
+          children: "Fermer"
+        }
+      )
+    ] })
+  ] }) });
 }
 const STORAGE_KEY = "fanpass:purchasedTickets:v1";
 const MATCH_EVENTS = [
@@ -764,7 +1256,7 @@ const INITIAL_TICKET = {
   ],
   securityCode: "FP-2030-C-ATLAS"
 };
-function formatMoney$1(amount, currency) {
+function formatMoney(amount, currency) {
   return `${amount.toLocaleString("fr-MA")} ${currency}`;
 }
 function getEventLabel(type) {
@@ -799,6 +1291,86 @@ function createSecurityCode(event, tier) {
 function findEvent(eventId) {
   return ALL_EVENTS.find((event) => event.id === eventId);
 }
+function formatGate$1(gate) {
+  if (!gate) return INITIAL_TICKET.gate;
+  if (gate.startsWith("Gate ")) return gate;
+  if (gate.startsWith("gate-"))
+    return `Gate ${gate.replace("gate-", "").toUpperCase()}`;
+  return gate;
+}
+function statusFromApi(status) {
+  if (status === "scanned") return "used";
+  if (status === "cancelled" || status === "expired" || status === "transferred") {
+    return "locked";
+  }
+  return "valid";
+}
+function seedFromString(value) {
+  return Array.from(value).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+}
+function mapApiEvent(event) {
+  const fallback = findEvent(event.id) ?? MATCH_EVENTS[0];
+  const access = event.access ?? {};
+  return {
+    id: event.id,
+    type: event.type,
+    title: event.title,
+    subtitle: event.subtitle ?? fallback.subtitle,
+    city: event.city ?? fallback.city,
+    venue: event.venue ?? fallback.venue,
+    date: event.date ?? fallback.date,
+    time: event.time ?? fallback.time,
+    density: event.density ?? fallback.density,
+    description: event.description ?? fallback.description,
+    access: {
+      gate: access.gate ?? fallback.access.gate,
+      accessZone: access.accessZone ?? fallback.access.accessZone,
+      tribune: access.tribune ?? fallback.access.tribune,
+      seatHint: access.seatHint ?? fallback.access.seatHint,
+      accessControl: access.accessControl ?? fallback.access.accessControl,
+      rules: access.rules ?? fallback.access.rules
+    },
+    tiers: event.tiers?.map((tier) => ({
+      id: tier.id,
+      name: tier.name,
+      price: tier.price_mad ?? tier.price ?? 0,
+      currency: "MAD",
+      benefits: tier.benefits ?? []
+    })) ?? fallback.tiers
+  };
+}
+function mapApiTicket$1(ticket) {
+  const eventId = ticket.event_id ?? ticket.match_id ?? "api-ticket";
+  const gate = formatGate$1(ticket.gate ?? ticket.gate_id);
+  const seat = ticket.seat_label ?? [ticket.seat_section, ticket.seat_row, ticket.seat_number].filter(Boolean).join(" - ") ?? INITIAL_TICKET.seat;
+  return {
+    ...INITIAL_TICKET,
+    id: ticket.id,
+    apiId: ticket.id,
+    eventId,
+    eventType: ticket.event_type ?? (ticket.event_id ? "event" : "match"),
+    title: ticket.title ?? INITIAL_TICKET.title,
+    subtitle: ticket.subtitle ?? INITIAL_TICKET.subtitle,
+    city: ticket.city ?? INITIAL_TICKET.city,
+    venue: ticket.venue ?? INITIAL_TICKET.venue,
+    date: ticket.date ?? INITIAL_TICKET.date,
+    time: ticket.time ?? INITIAL_TICKET.time,
+    tierName: ticket.tier_name ?? INITIAL_TICKET.tierName,
+    quantity: ticket.quantity ?? 1,
+    total: ticket.total_mad ?? ticket.price_mad ?? INITIAL_TICKET.total,
+    qrSeed: ticket.qr_seed ?? seedFromString(ticket.id),
+    purchasedAt: ticket.purchased_at ?? (/* @__PURE__ */ new Date()).toISOString(),
+    status: statusFromApi(ticket.status),
+    gate,
+    accessZone: ticket.access_zone ?? INITIAL_TICKET.accessZone,
+    tribune: ticket.tribune ?? INITIAL_TICKET.tribune,
+    seat,
+    accessControl: ticket.access_control ?? INITIAL_TICKET.accessControl,
+    accessRules: ticket.access_rules ?? INITIAL_TICKET.accessRules,
+    securityCode: ticket.security_code ?? INITIAL_TICKET.securityCode,
+    qrRaw: ticket.qr_raw
+  };
+}
 function normalizeStoredTicket(ticket) {
   const event = ticket.eventId ? findEvent(ticket.eventId) : void 0;
   const fallbackAccess = event?.access ?? MATCH_EVENTS[0].access;
@@ -829,25 +1401,71 @@ function readStoredTickets() {
   }
 }
 function TicketView({ onNav }) {
+  const { token } = useAuth();
   const [segment, setSegment] = reactExports.useState("wallet");
   const [tickets, setTickets] = reactExports.useState([INITIAL_TICKET]);
+  const [catalogEvents, setCatalogEvents] = reactExports.useState(ALL_EVENTS);
   const [hydrated, setHydrated] = reactExports.useState(false);
   const [activeTicketId, setActiveTicketId] = reactExports.useState(INITIAL_TICKET.id);
   const [checkoutEvent, setCheckoutEvent] = reactExports.useState(null);
   const [selectedTierId, setSelectedTierId] = reactExports.useState("");
   const [quantity, setQuantity] = reactExports.useState(1);
+  const [showImport, setShowImport] = reactExports.useState(false);
+  const [showScan, setShowScan] = reactExports.useState(false);
+  const [showAcceptTransfer, setShowAcceptTransfer] = reactExports.useState(false);
+  const [transferTicket, setTransferTicket] = reactExports.useState(
+    null
+  );
+  const loadRemoteWallet = reactExports.useCallback(async () => {
+    if (!token) return false;
+    try {
+      const response = await fanpassFetch("/tickets", token, {
+        signal: AbortSignal.timeout(4e3)
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      if (!Array.isArray(data) || data.length === 0) return false;
+      const apiTickets = data.map((ticket) => mapApiTicket$1(ticket));
+      setTickets(apiTickets);
+      setActiveTicketId(apiTickets[0]?.id ?? INITIAL_TICKET.id);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [token]);
   reactExports.useEffect(() => {
     const storedTickets = readStoredTickets();
     setTickets(storedTickets);
     setActiveTicketId(storedTickets[0]?.id ?? INITIAL_TICKET.id);
     setHydrated(true);
-  }, []);
+    void loadRemoteWallet();
+  }, [loadRemoteWallet]);
+  reactExports.useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fanpassFetch("/tickets/events", token, {
+          signal: AbortSignal.timeout(4e3)
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setCatalogEvents(data.map((event) => mapApiEvent(event)));
+        }
+      } catch {
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
   reactExports.useEffect(() => {
     if (!hydrated || typeof window === "undefined") return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
   }, [hydrated, tickets]);
   const activeTicket = tickets.find((ticket) => ticket.id === activeTicketId) ?? tickets[0] ?? INITIAL_TICKET;
-  const visibleEvents = segment === "zones" ? FAN_ZONE_EVENTS : segment === "events" ? FOOTBALL_EVENTS : MATCH_EVENTS;
+  const visibleEvents = segment === "zones" ? catalogEvents.filter((event) => event.type === "fan_zone") : segment === "events" ? catalogEvents.filter((event) => event.type === "event") : catalogEvents.filter((event) => event.type === "match");
   const selectedTier = checkoutEvent?.tiers.find((tier) => tier.id === selectedTierId) ?? checkoutEvent?.tiers[0];
   const total = selectedTier ? selectedTier.price * quantity : 0;
   const walletStats = reactExports.useMemo(() => {
@@ -867,39 +1485,91 @@ function TicketView({ onNav }) {
     setSelectedTierId(event.tiers[0]?.id ?? "");
     setQuantity(1);
   }
-  function confirmCheckout() {
-    if (!checkoutEvent || !selectedTier) return;
-    const purchasedTicket = {
-      id: createTicketId(checkoutEvent),
-      eventId: checkoutEvent.id,
-      eventType: checkoutEvent.type,
-      title: checkoutEvent.title,
-      subtitle: checkoutEvent.subtitle,
-      city: checkoutEvent.city,
-      venue: checkoutEvent.venue,
-      date: checkoutEvent.date,
-      time: checkoutEvent.time,
-      tierName: selectedTier.name,
-      quantity,
-      total,
-      currency: selectedTier.currency,
-      qrSeed: createQrSeed(checkoutEvent),
-      purchasedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      status: "valid",
-      gate: checkoutEvent.access.gate,
-      accessZone: checkoutEvent.access.accessZone,
-      tribune: checkoutEvent.access.tribune,
-      seat: checkoutEvent.access.seatHint,
-      accessControl: checkoutEvent.access.accessControl,
-      accessRules: checkoutEvent.access.rules,
-      securityCode: createSecurityCode(checkoutEvent, selectedTier)
-    };
+  function addPurchasedTicket(purchasedTicket) {
     setTickets((currentTickets) => [purchasedTicket, ...currentTickets]);
     setActiveTicketId(purchasedTicket.id);
     setSegment("wallet");
     setCheckoutEvent(null);
   }
+  function createLocalPurchase(event, tier) {
+    const localTotal = tier.price * quantity;
+    return {
+      id: createTicketId(event),
+      eventId: event.id,
+      eventType: event.type,
+      title: event.title,
+      subtitle: event.subtitle,
+      city: event.city,
+      venue: event.venue,
+      date: event.date,
+      time: event.time,
+      tierName: tier.name,
+      quantity,
+      total: localTotal,
+      currency: tier.currency,
+      qrSeed: createQrSeed(event),
+      purchasedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      status: "valid",
+      gate: event.access.gate,
+      accessZone: event.access.accessZone,
+      tribune: event.access.tribune,
+      seat: event.access.seatHint,
+      accessControl: event.access.accessControl,
+      accessRules: event.access.rules,
+      securityCode: createSecurityCode(event, tier)
+    };
+  }
+  async function confirmCheckout() {
+    if (!checkoutEvent || !selectedTier) return;
+    if (token) {
+      try {
+        const response = await fanpassFetch("/tickets/purchase", token, {
+          method: "POST",
+          body: JSON.stringify({
+            event_id: checkoutEvent.id,
+            tier_id: selectedTier.id,
+            gate_id: checkoutEvent.access.gate.toLowerCase().replace(" ", "-"),
+            quantity
+          })
+        });
+        if (response.ok) {
+          const apiTicket = mapApiTicket$1(await response.json());
+          addPurchasedTicket(apiTicket);
+          return;
+        }
+      } catch {
+      }
+    }
+    addPurchasedTicket(createLocalPurchase(checkoutEvent, selectedTier));
+  }
   const navigate = (tab) => onNav?.(tab);
+  if (showImport) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(
+      ImportTicketView,
+      {
+        onBack: () => setShowImport(false),
+        onImported: () => {
+          setShowImport(false);
+          void loadRemoteWallet();
+        }
+      }
+    );
+  }
+  if (showScan) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(ScanView, { onBack: () => setShowScan(false) });
+  }
+  if (showAcceptTransfer) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(
+      AcceptTransferView,
+      {
+        onBack: () => setShowAcceptTransfer(false),
+        onAccepted: () => {
+          setShowAcceptTransfer(false);
+          void loadRemoteWallet();
+        }
+      }
+    );
+  }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-5", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(SectionTitle, { eyebrow: "Smart Ticketing", title: "Billets sécurisés" }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary-glow p-5 text-primary-foreground shadow-elevated", children: [
@@ -961,10 +1631,35 @@ function TicketView({ onNav }) {
         onSelectTicket: setActiveTicketId,
         onOpenMatches: () => setSegment("matches"),
         onOpenZones: () => setSegment("zones"),
-        onOpenEvents: () => setSegment("events")
+        onOpenEvents: () => setSegment("events"),
+        onTransferTicket: setTransferTicket
       }
     ) : /* @__PURE__ */ jsxRuntimeExports.jsx(CatalogView, { events: visibleEvents, onCheckout: openCheckout }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        QuickAction,
+        {
+          icon: Upload,
+          label: "Importer un billet",
+          onClick: () => setShowImport(true)
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        QuickAction,
+        {
+          icon: Ticket,
+          label: "Recevoir transfert",
+          onClick: () => setShowAcceptTransfer(true)
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        QuickAction,
+        {
+          icon: ScanLine,
+          label: "Scanner demo",
+          onClick: () => setShowScan(true)
+        }
+      ),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         QuickAction,
         {
@@ -1011,6 +1706,14 @@ function TicketView({ onNav }) {
         onQuantityChange: setQuantity,
         onConfirm: confirmCheckout
       }
+    ),
+    transferTicket && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      TransferModal,
+      {
+        ticketId: transferTicket.apiId ?? transferTicket.id,
+        ticketTitle: transferTicket.title,
+        onClose: () => setTransferTicket(null)
+      }
     )
   ] });
 }
@@ -1041,8 +1744,13 @@ function WalletView({
   onSelectTicket,
   onOpenMatches,
   onOpenZones,
-  onOpenEvents
+  onOpenEvents,
+  onTransferTicket
 }) {
+  function copySignedQr() {
+    if (!activeTicket.qrRaw || typeof navigator === "undefined") return;
+    void navigator.clipboard.writeText(activeTicket.qrRaw);
+  }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-4", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-4", children: [
@@ -1074,6 +1782,24 @@ function WalletView({
         /* @__PURE__ */ jsxRuntimeExports.jsx(SecurityPill, { icon: LockKeyhole, label: "Anti-copie actif" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(SecurityPill, { icon: ScanLine, label: "Contrôle gate" }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(SecurityPill, { icon: ShieldCheck, label: "Billet sécurisé" })
+      ] }),
+      (activeTicket.qrRaw || activeTicket.apiId) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-2 gap-2", children: [
+        activeTicket.qrRaw && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: copySignedQr,
+            className: "rounded-2xl bg-white/5 px-3 py-3 text-xs font-medium",
+            children: "Copier QR signe"
+          }
+        ),
+        activeTicket.apiId && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => onTransferTicket(activeTicket),
+            className: "rounded-2xl bg-primary px-3 py-3 text-xs font-medium text-primary-foreground glow-primary",
+            children: "Transferer"
+          }
+        )
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-5 rounded-2xl bg-white/5 px-4 py-3 text-sm", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-3", children: [
@@ -1214,7 +1940,7 @@ function CatalogView({
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 flex items-center justify-between gap-3", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-muted-foreground", children: "À partir de" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-lg font-semibold", children: formatMoney$1(minPrice, "MAD") })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-lg font-semibold", children: formatMoney(minPrice, "MAD") })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs(
           "button",
@@ -1298,7 +2024,7 @@ function CheckoutModal({
                 /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold", children: tier.name }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-xs text-muted-foreground", children: tier.benefits.join(" - ") })
               ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-right text-sm font-semibold", children: formatMoney$1(tier.price, tier.currency) })
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-right text-sm font-semibold", children: formatMoney(tier.price, tier.currency) })
             ] })
           },
           tier.id
@@ -1337,7 +2063,7 @@ function CheckoutModal({
           " x",
           quantity
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: formatMoney$1(total, selectedTier.currency) })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: formatMoney(total, selectedTier.currency) })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 flex items-center gap-2 text-xs text-primary-glow", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "h-4 w-4" }),
@@ -1394,6 +2120,23 @@ const DEFAULT_TICKET = {
   time: "20:00",
   gate: "Gate C"
 };
+function formatGate(gate) {
+  if (!gate) return DEFAULT_TICKET.gate;
+  if (gate.startsWith("Gate ")) return gate;
+  if (gate.startsWith("gate-"))
+    return `Gate ${gate.replace("gate-", "").toUpperCase()}`;
+  return gate;
+}
+function mapApiTicket(ticket) {
+  return {
+    title: ticket.title ?? ticket.ticket_title ?? DEFAULT_TICKET.title,
+    city: ticket.city ?? DEFAULT_TICKET.city,
+    venue: ticket.venue ?? DEFAULT_TICKET.venue,
+    date: ticket.date ?? DEFAULT_TICKET.date,
+    time: ticket.time ?? DEFAULT_TICKET.time,
+    gate: formatGate(ticket.gate ?? ticket.gate_id)
+  };
+}
 function readActiveTicket() {
   if (typeof window === "undefined") return DEFAULT_TICKET;
   try {
@@ -1415,10 +2158,29 @@ function readActiveTicket() {
   }
 }
 function useActiveTicket() {
+  const { token } = useAuth();
   const [ticket, setTicket] = reactExports.useState(DEFAULT_TICKET);
   reactExports.useEffect(() => {
     setTicket(readActiveTicket());
-  }, []);
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fanpassFetch("/tickets", token, {
+          signal: AbortSignal.timeout(3e3)
+        });
+        if (!response.ok) return;
+        const tickets = await response.json();
+        if (!cancelled && Array.isArray(tickets) && tickets[0]) {
+          setTicket(mapApiTicket(tickets[0]));
+        }
+      } catch {
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
   return ticket;
 }
 function HeroBanner({
@@ -1477,319 +2239,491 @@ function FilterBar({
     }
   );
 }
-const GATE_PLANS = {
-  "Gate C": {
-    headline: "Route optimisee vers Gate C",
-    destinationLabel: "Entree Nord - Gate C",
-    estimatedTime: "24 min",
-    departureTime: "18:30",
-    gateWait: "8 min",
-    crowdStatus: "Charge",
-    recommendedMode: "Tramway T2 + marche finale",
-    dropOff: "Drop-off Boulevard des Sports Nord",
-    parking: "Parking P3 Nord, 420 places restantes",
-    finalWalk: "650 m via corridor securise bleu",
-    alternativeGate: "Gate D si Gate C depasse 15 min",
-    returnPlan: "Retour conseille par navette Nord a 22:45"
-  },
-  "Gate E": {
-    headline: "Route supporters visiteurs vers Gate E",
-    destinationLabel: "Entree Est - Gate E",
-    estimatedTime: "31 min",
-    departureTime: "16:45",
-    gateWait: "11 min",
-    crowdStatus: "Charge",
-    recommendedMode: "Navette Est depuis fan hub",
-    dropOff: "Drop-off Avenue Al Fath Est",
-    parking: "Parking P5 Est, acces visiteurs",
-    finalWalk: "500 m via perimetre Est",
-    alternativeGate: "Gate F si Gate E est saturee",
-    returnPlan: "VTC recommande depuis zone Est apres 21:30"
-  },
-  "Gate B": {
-    headline: "Route famille et PMR vers Gate B",
-    destinationLabel: "Entree Sud - Gate B",
-    estimatedTime: "28 min",
-    departureTime: "19:15",
-    gateWait: "6 min",
-    crowdStatus: "Fluide",
-    recommendedMode: "Parking P2 Sud + marche courte",
-    dropOff: "Drop-off Famille Sud",
-    parking: "Parking P2 Sud, proche ascenseurs",
-    finalWalk: "380 m via corridor famille",
-    alternativeGate: "Gate A si controle Sud ferme",
-    returnPlan: "Sortie conseillee par couloir famille 23:20"
-  }
-};
-function getPlanForTicket(gate) {
-  return GATE_PLANS[gate] ?? GATE_PLANS["Gate C"];
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png"
+});
+const gateIcon = new L.DivIcon({
+  html: `<div style="background:#1A6FE8;color:white;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 0 20px rgba(26,111,232,0.5)">Gate</div>`,
+  iconSize: [60, 24],
+  iconAnchor: [30, 12]
+});
+const userIcon = new L.DivIcon({
+  html: `<div style="background:#00C48C;color:white;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 0 16px rgba(0,196,140,0.6)"></div>`,
+  iconSize: [26, 26],
+  iconAnchor: [13, 13]
+});
+const dropoffIcon = new L.DivIcon({
+  html: `<div style="background:#F97316;color:white;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:600;white-space:nowrap">Drop-off</div>`,
+  iconSize: [60, 20],
+  iconAnchor: [30, 10]
+});
+function FitBounds({ bounds }) {
+  const map = useMap();
+  reactExports.useEffect(() => {
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }, [map, bounds]);
+  return null;
 }
-function statusClass$1(status) {
-  if (status === "Sature") return "bg-destructive/20 text-destructive";
-  if (status === "Charge") return "bg-primary/20 text-primary-glow";
+async function fetchOSRMRoute(from, to) {
+  const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?geometries=geojson&overview=full`;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8e3);
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.routes?.length > 0)
+        return data.routes[0].geometry.coordinates.map((c) => [
+          c[1],
+          c[0]
+        ]);
+    }
+  } catch {
+  }
+  return null;
+}
+function GateAwareMap({ plan, gateCode }) {
+  const [userPos, setUserPos] = reactExports.useState(null);
+  const [route, setRoute] = reactExports.useState(null);
+  const [routeInfo, setRouteInfo] = reactExports.useState("");
+  const fetchingRef = reactExports.useRef(false);
+  const dest = reactExports.useMemo(
+    () => [plan.coordinates.lat, plan.coordinates.lon],
+    [plan.coordinates.lat, plan.coordinates.lon]
+  );
+  const dropoff = reactExports.useMemo(
+    () => [plan.dropoff_coords.lat, plan.dropoff_coords.lon],
+    [plan.dropoff_coords.lat, plan.dropoff_coords.lon]
+  );
+  reactExports.useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (p) => setUserPos([p.coords.latitude, p.coords.longitude]),
+        () => setUserPos([dropoff[0] + 0.02, dropoff[1] - 0.02]),
+        { enableHighAccuracy: true, timeout: 8e3 }
+      );
+    } else setUserPos([dropoff[0] + 0.02, dropoff[1] - 0.02]);
+  }, [dropoff]);
+  reactExports.useEffect(() => {
+    if (!userPos || fetchingRef.current) return;
+    fetchingRef.current = true;
+    let cancelled = false;
+    (async () => {
+      setRoute(null);
+      setRouteInfo("Calcul...");
+      const seg1 = await fetchOSRMRoute(userPos, dropoff);
+      if (cancelled || !seg1) {
+        if (!cancelled) setRouteInfo("OSRM indisponible");
+        fetchingRef.current = false;
+        return;
+      }
+      const seg2 = await fetchOSRMRoute(dropoff, dest);
+      if (cancelled || !seg2) {
+        if (!cancelled) setRouteInfo("OSRM indisponible");
+        fetchingRef.current = false;
+        return;
+      }
+      const combined = [...seg1, ...seg2.slice(1)];
+      if (!cancelled) {
+        setRoute(combined);
+        setRouteInfo(`${(combined.length * 0.03).toFixed(1)} km · OSRM`);
+        fetchingRef.current = false;
+      }
+    })();
+    return () => {
+      cancelled = true;
+      fetchingRef.current = false;
+    };
+  }, [dest, dropoff, userPos]);
+  const center = userPos ?? dropoff;
+  const bounds = userPos ? L.latLngBounds([userPos, dest]) : L.latLngBounds([dropoff, dest]);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative mt-4 h-80 overflow-hidden rounded-2xl border border-white/5", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      MapContainer,
+      {
+        center,
+        zoom: 14,
+        className: "h-full w-full",
+        zoomControl: false,
+        attributionControl: false,
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            TileLayer,
+            {
+              url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              maxZoom: 19
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(FitBounds, { bounds }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Marker, { position: dest, icon: gateIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Popup, { children: [
+            "Gate ",
+            gateCode
+          ] }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Marker, { position: dropoff, icon: dropoffIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Popup, { children: "Drop-off" }) }),
+          userPos && /* @__PURE__ */ jsxRuntimeExports.jsx(Marker, { position: userPos, icon: userIcon, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Popup, { children: "Vous" }) }),
+          route && route.length >= 2 && /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Polyline,
+            {
+              positions: route,
+              pathOptions: { color: "#1A6FE8", weight: 4, opacity: 0.8 }
+            }
+          )
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass absolute bottom-3 left-3 rounded-lg px-2 py-1 text-xs z-[1000]", children: userPos ? "Vous" : "Pos. approx." }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute left-3 top-3 rounded-lg bg-destructive/20 px-2 py-1 text-xs text-destructive z-[1000]", children: [
+      plan.closed_roads.length,
+      " routes fermées"
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass absolute right-3 top-3 rounded-lg px-2 py-1 text-xs z-[1000]", children: [
+      "Gate ",
+      gateCode
+    ] }),
+    routeInfo && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute bottom-3 right-3 rounded-lg bg-primary/15 px-2 py-1 text-xs text-primary-glow z-[1000]", children: routeInfo })
+  ] });
+}
+function transportIcon(id) {
+  if (id === "tram") return TramFront;
+  if (id === "bus") return Bus;
+  if (id === "drive" || id === "taxi") return Car;
+  if (id === "group") return Users;
+  return Navigation;
+}
+function statusClass$1(s) {
+  if (s === "high" || s === "Sature")
+    return "bg-destructive/20 text-destructive";
+  if (s === "medium" || s === "Charge")
+    return "bg-primary/20 text-primary-glow";
+  if (s === "closed" || s === "Ferme")
+    return "bg-white/10 text-muted-foreground";
   return "bg-success/20 text-success";
 }
+function statusLabel$2(s) {
+  if (s === "high") return "Saturé";
+  if (s === "medium") return "Chargé";
+  if (s === "closed") return "Fermé";
+  return "Fluide";
+}
+const fallbackPlan = {
+  gate_id: "gate-c",
+  headline: "Route optimisée vers Gate C",
+  destination_label: "Entrée Nord — Gate C",
+  estimated_time_min: 24,
+  departure_time: "18:30",
+  gate_wait_min: 8,
+  crowd_status: "medium",
+  recommended_mode: "Tramway T2",
+  drop_off: "Drop-off Boulevard des Sports Nord",
+  parking: "Parking P3 Nord, 420 places",
+  final_walk: "650 m via corridor bleu",
+  alternative_gate: "Gate D",
+  return_plan: "Navette Nord 22:45",
+  closed_roads: ["Avenue des Stades"],
+  checkpoints: ["Checkpoint Alpha (300m)"],
+  coordinates: { lat: 33.5731, lon: -7.6698 },
+  dropoff_coords: { lat: 33.581, lon: -7.665 }
+};
+const fallbackModes = [
+  { id: "taxi", label: "Taxi/VTC", icon: "Car" },
+  { id: "tram", label: "Tramway", icon: "Train" },
+  { id: "bus", label: "Navette", icon: "Bus" },
+  { id: "drive", label: "Voiture", icon: "Car" },
+  { id: "walk", label: "Marche", icon: "Walk" },
+  { id: "group", label: "Groupe", icon: "Users" }
+];
 function ItineraireSection() {
-  const ticket = useActiveTicket();
-  const plan = reactExports.useMemo(() => getPlanForTicket(ticket.gate), [ticket.gate]);
+  const { token } = useAuth();
+  const [data, setData] = reactExports.useState(null);
+  const [transportMode, setTransportMode] = reactExports.useState("taxi");
+  const [recalculated, setRecalculated] = reactExports.useState(
+    null
+  );
+  const [alerts, setAlerts] = reactExports.useState([]);
+  const [loading, setLoading] = reactExports.useState(true);
+  const [guidanceStarted, setGuidanceStarted] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    const timeout = setTimeout(() => setLoading(false), 4e3);
+    if (!token) {
+      setLoading(false);
+      return () => clearTimeout(timeout);
+    }
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 4e3);
+    (async () => {
+      try {
+        const [mr, ar] = await Promise.all([
+          fanpassFetch("/mobility/gate-plan", token, {
+            signal: controller.signal
+          }),
+          fanpassFetch("/mobility/alerts", token, {
+            signal: controller.signal
+          })
+        ]);
+        if (mr.ok) setData(await mr.json());
+        if (ar.ok) setAlerts(await ar.json());
+      } catch {
+      } finally {
+        clearTimeout(t);
+        clearTimeout(timeout);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      clearTimeout(t);
+      clearTimeout(timeout);
+    };
+  }, [token]);
+  async function handleModeChange(mode) {
+    setTransportMode(mode);
+    if (!data || !token) return;
+    try {
+      const r = await fanpassFetch("/mobility/recalculate", token, {
+        method: "POST",
+        body: JSON.stringify({ gate_id: data.gate_id, transport_mode: mode }),
+        signal: AbortSignal.timeout(3e3)
+      });
+      if (r.ok) setRecalculated(await r.json());
+    } catch {
+    }
+  }
+  const plan = recalculated?.plan ?? data?.plan ?? fallbackPlan;
+  const gateCode = data?.gate_id?.replace("gate-", "").toUpperCase() ?? "C";
+  const departure = recalculated?.departure ?? data?.departure ?? "18:45";
+  const modes = data?.transport_modes ?? fallbackModes;
+  if (loading) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-4", children: [...Array(4)].map((_, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "glass rounded-3xl p-6 animate-pulse space-y-3",
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-4 w-2/3 bg-white/5 rounded-lg" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-3 w-full bg-white/5 rounded-lg" })
+        ]
+      },
+      i
+    )) });
+  }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-5", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow mb-3", children: "Mode de transport" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-2", children: modes.map((mode) => {
+        const I = transportIcon(mode.id);
+        const a = transportMode === mode.id;
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "button",
+          {
+            onClick: () => handleModeChange(mode.id),
+            className: `rounded-2xl p-3 text-center transition ${a ? "bg-primary/15 ring-1 ring-primary/40" : "bg-white/5 hover:bg-white/10"}`,
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                I,
+                {
+                  className: `h-5 w-5 mx-auto mb-1 ${a ? "text-primary-glow" : "text-muted-foreground"}`
+                }
+              ),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "span",
+                {
+                  className: `text-[0.68rem] font-semibold ${a ? "text-foreground" : "text-muted-foreground"}`,
+                  children: mode.label
+                }
+              )
+            ]
+          },
+          mode.id
+        );
+      }) })
+    ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-4", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: plan.headline }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-xl font-semibold", children: plan.destinationLabel }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-2 text-sm text-muted-foreground", children: [
-            ticket.gate,
-            " - ",
-            ticket.venue
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-xl font-semibold", children: plan.destination_label }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-1 text-xs text-muted-foreground", children: [
+            "Gate ",
+            gateCode,
+            " — Votre billet donne accès à cette entrée"
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "span",
           {
-            className: `label-xs rounded-full px-2 py-1 ${statusClass$1(plan.crowdStatus)}`,
-            children: plan.crowdStatus
+            className: `label-xs rounded-full px-2 py-1 ${statusClass$1(plan.crowd_status)}`,
+            children: statusLabel$2(plan.crowd_status)
           }
         )
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-3 gap-2 text-center text-sm", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(HeroStat$1, { label: "Temps", value: plan.estimatedTime }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(HeroStat$1, { label: "Départ", value: plan.departureTime }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(HeroStat$1, { label: "Attente", value: plan.gateWait })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(MobilityMap, { gate: ticket.gate })
+      /* @__PURE__ */ jsxRuntimeExports.jsx(GateAwareMap, { plan, gateCode })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid gap-3", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
-        RouteCard,
+        RC,
         {
-          icon: TramFront,
-          eyebrow: "Mode recommandé",
-          title: plan.recommendedMode,
-          detail: "Calculé selon votre billet, la foule et les périmètres actifs."
+          icon: transportIcon(transportMode),
+          eyebrow: "Partie 1 — Approche",
+          title: recalculated?.arrival_point ?? plan.drop_off,
+          detail: transportMode === "drive" ? "Parking recommandé." : `Point de dépôt le plus proche de Gate ${gateCode}.`
         }
       ),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
-        RouteCard,
+        RC,
         {
-          icon: Car,
-          eyebrow: "Point de dépôt",
-          title: plan.dropOff,
-          detail: "Évite les routes fermées autour du stade."
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        RouteCard,
-        {
-          icon: MapPin,
-          eyebrow: "Smart parking",
-          title: plan.parking,
-          detail: "Parking recommandé selon votre entrée."
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        RouteCard,
-        {
-          icon: DoorOpen,
-          eyebrow: "Marche finale",
-          title: plan.finalWalk,
-          detail: `Guidage piéton jusqu'à ${ticket.gate}.`
+          icon: Navigation,
+          eyebrow: "Partie 2 — Dernier kilomètre",
+          title: recalculated?.final_walk ?? plan.final_walk,
+          detail: `Guidage piéton jusqu'au scan QR.`
         }
       )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow mb-3", children: "Routes fermées" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2", children: plan.closed_roads.map((r) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "flex items-center gap-3 rounded-2xl bg-destructive/10 px-3 py-3 text-sm",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "h-4 w-4 text-destructive" }),
+            r
+          ]
+        },
+        r
+      )) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow mb-3", children: "Points de contrôle" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-2", children: [
+        plan.checkpoints.map((cp, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+          "div",
+          {
+            className: "flex items-center gap-3 rounded-2xl bg-white/5 px-3 py-3 text-sm",
+            children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "grid h-7 w-7 place-items-center rounded-full bg-primary/15 text-xs font-semibold text-primary-glow", children: i + 1 }),
+              cp
+            ]
+          },
+          cp
+        )),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3 rounded-2xl bg-success/10 px-3 py-3 text-sm", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(DoorOpen, { className: "h-4 w-4 text-success" }),
+          "Gate ",
+          gateCode,
+          " — Scan QR"
+        ] })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary-glow p-5 text-primary-foreground shadow-elevated", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute -right-20 -top-20 h-48 w-48 rounded-full bg-white/10 blur-2xl" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative text-center", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs opacity-80 mb-2", children: "Départ recommandé" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-5xl font-bold", children: departure }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-2 text-sm opacity-90", children: [
+          "Match à ",
+          data?.kickoff_time ?? "20:00",
+          " —",
+          " ",
+          plan.estimated_time_min + 9 + plan.gate_wait_min,
+          " min"
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 grid grid-cols-3 gap-2 text-xs", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-2xl bg-white/15 px-2 py-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold", children: [
+              plan.estimated_time_min,
+              " min"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "opacity-75", children: "Trajet" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-2xl bg-white/15 px-2 py-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold", children: "9 min" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "opacity-75", children: "Marche" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-2xl bg-white/15 px-2 py-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-semibold", children: [
+              plan.gate_wait_min,
+              " min"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "opacity-75", children: "Attente" })
+          ] })
+        ] })
+      ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs px-1 text-muted-foreground", children: "Alertes temps réel" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        AlertCard,
-        {
-          tone: "warning",
-          title: "Route fermée",
-          detail: "Avenue des Stades fermée 2h avant le coup d'envoi. Redirection par Boulevard Nord."
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        AlertCard,
-        {
-          tone: "info",
-          title: "Périmètre sécurité",
-          detail: `Périmètre accessible uniquement avec QR valide et contrôle sac.`
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        AlertCard,
-        {
-          tone: "danger",
-          title: "Redirection automatique",
-          detail: plan.alternativeGate
-        }
-      )
+      alerts.map((a) => /* @__PURE__ */ jsxRuntimeExports.jsx(AC, { alert: a }, a.id))
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(MiniAction, { icon: Bus, title: "Navette", detail: "Départ dans 7 min" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(MiniAction, { icon: RefreshCw, title: "Retour", detail: plan.returnPlan })
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass rounded-3xl p-5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-12 w-12 place-items-center rounded-2xl bg-success/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(RefreshCw, { className: "h-6 w-6 text-success" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-success", children: "Retour après match" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-sm font-semibold", children: plan.return_plan }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-2 text-xs text-muted-foreground", children: [
+          "Sortie conseillée par Gate ",
+          gateCode,
+          "."
+        ] })
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Porte alternative" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-2 text-sm font-semibold", children: plan.alternative_gate }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-1 text-xs text-muted-foreground", children: [
+        "Utilisez cette gate si Gate ",
+        gateCode,
+        " dépasse 15 min."
+      ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-medium text-primary-foreground glow-primary transition hover:scale-[1.01]", children: [
-      "Démarrer vers ",
-      ticket.gate,
-      /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowRight, { className: "h-4 w-4" })
-    ] })
+    guidanceStarted && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5 ring-1 ring-success/20", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-success", children: "Guidage actif" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-1 text-sm font-semibold", children: [
+        "Direction ",
+        plan.destination_label
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-2 text-xs text-muted-foreground", children: [
+        "Suivez le point de depot recommande, puis le corridor pieton final vers Gate ",
+        gateCode,
+        "."
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
+      {
+        onClick: () => setGuidanceStarted(true),
+        className: "flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-medium text-primary-foreground glow-primary",
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowRight, { className: "h-4 w-4" }),
+          " ",
+          guidanceStarted ? `Guidage vers Gate ${gateCode}` : `Demarrer vers Gate ${gateCode}`
+        ]
+      }
+    )
   ] });
 }
-function HeroStat$1({ label, value }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-2xl bg-white/5 px-2 py-3", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-lg font-semibold", children: value }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs opacity-75 text-muted-foreground", children: label })
-  ] });
-}
-function MobilityMap({ gate }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative mt-4 h-56 overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-[#0a1a33] to-[#102a55]", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { viewBox: "0 0 300 220", className: "absolute inset-0 h-full w-full", children: [
-      [...Array(8)].map((_, i) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "line",
-        {
-          x1: i * 42,
-          y1: 0,
-          x2: i * 42,
-          y2: 220,
-          stroke: "rgba(255,255,255,0.04)"
-        },
-        `v${i}`
-      )),
-      [...Array(7)].map((_, i) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "line",
-        {
-          x1: 0,
-          y1: i * 34,
-          x2: 300,
-          y2: i * 34,
-          stroke: "rgba(255,255,255,0.04)"
-        },
-        `h${i}`
-      )),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "rect",
-        {
-          x: "108",
-          y: "50",
-          width: "84",
-          height: "70",
-          rx: "18",
-          fill: "#1A6FE8",
-          opacity: "0.4"
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("rect", { x: "128", y: "68", width: "44", height: "34", rx: "10", fill: "#1A6FE8" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "text",
-        {
-          x: "150",
-          y: "90",
-          textAnchor: "middle",
-          fill: "white",
-          fontSize: "10",
-          fontWeight: "700",
-          children: "STADE"
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "path",
-        {
-          d: "M32,190 C70,160 82,132 118,126 S174,146 202,106 S232,78 268,64",
-          stroke: "url(#routeGradient)",
-          strokeWidth: "4",
-          fill: "none",
-          strokeLinecap: "round",
-          strokeDasharray: "7 7",
-          children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "animate",
-            {
-              attributeName: "stroke-dashoffset",
-              from: "0",
-              to: "-28",
-              dur: "1.1s",
-              repeatCount: "indefinite"
-            }
-          )
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "path",
-        {
-          d: "M72,170 L118,126 L150,121",
-          stroke: "#F97316",
-          strokeWidth: "8",
-          opacity: "0.25",
-          strokeLinecap: "round"
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "232", cy: "78", r: "24", fill: "#F97316", opacity: "0.12" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "232", cy: "78", r: "11", fill: "#F97316", opacity: "0.35" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("defs", { children: /* @__PURE__ */ jsxRuntimeExports.jsxs("linearGradient", { id: "routeGradient", x1: "0", x2: "1", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "0", stopColor: "#00C48C" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("stop", { offset: "1", stopColor: "#73B9FF" })
-      ] }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "32", cy: "190", r: "7", fill: "#00C48C" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "268", cy: "64", r: "9", fill: "#73B9FF", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "animate",
-        {
-          attributeName: "r",
-          values: "9;13;9",
-          dur: "2s",
-          repeatCount: "indefinite"
-        }
-      ) })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass absolute bottom-3 left-3 rounded-lg px-2 py-1 text-xs", children: "Vous" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass absolute right-3 top-3 rounded-lg px-2 py-1 text-xs", children: gate }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute left-3 top-3 rounded-lg bg-destructive/20 px-2 py-1 text-xs text-destructive", children: "Route fermée" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute bottom-3 right-3 rounded-lg bg-primary/20 px-2 py-1 text-xs text-primary-glow", children: "Périmètre sécurisé" })
-  ] });
-}
-function RouteCard({
-  icon: Icon,
+function RC({
+  icon: I,
   eyebrow,
   title,
   detail
 }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass rounded-2xl p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-4", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { className: "h-6 w-6 text-primary-glow" }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0 flex-1", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-12 w-12 place-items-center rounded-xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(I, { className: "h-6 w-6 text-primary-glow" }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: eyebrow }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-sm font-semibold", children: title }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-xs text-muted-foreground", children: detail })
     ] })
   ] }) });
 }
-function AlertCard({
-  tone,
-  title,
-  detail
-}) {
-  const toneClass = tone === "danger" ? "text-destructive bg-destructive/15" : tone === "warning" ? "text-primary-glow bg-primary/15" : "text-success bg-success/15";
+function AC({ alert }) {
+  const tc = alert.severity === "critical" ? "bg-destructive/15 text-destructive" : alert.severity === "warning" ? "bg-primary/15 text-primary-glow" : "bg-success/15 text-success";
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass rounded-2xl p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-3", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "div",
-      {
-        className: `grid h-9 w-9 shrink-0 place-items-center rounded-xl ${toneClass}`,
-        children: tone === "info" ? /* @__PURE__ */ jsxRuntimeExports.jsx(ShieldCheck, { className: "h-5 w-5" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "h-5 w-5" })
-      }
-    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `grid h-9 w-9 place-items-center rounded-xl ${tc}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(TriangleAlert, { className: "h-5 w-5" }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold", children: title }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-xs text-muted-foreground", children: detail })
-    ] })
-  ] }) });
-}
-function MiniAction({
-  icon: Icon,
-  title,
-  detail
-}) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass rounded-2xl p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { className: "h-5 w-5 text-primary-glow" }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold", children: title }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-xs text-muted-foreground", children: detail })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold", children: alert.title }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-xs text-muted-foreground", children: alert.detail })
     ] })
   ] }) });
 }
@@ -1869,6 +2803,7 @@ function statusClass(status) {
 }
 function GateSection() {
   const ticket = useActiveTicket();
+  const [showQr, setShowQr] = reactExports.useState(false);
   const activeGate = reactExports.useMemo(() => getGateInfo(ticket.gate), [ticket.gate]);
   const alternativeGate = reactExports.useMemo(
     () => getAlternativeGate(activeGate),
@@ -2016,11 +2951,46 @@ function GateSection() {
         )
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-medium text-primary-foreground glow-primary transition hover:scale-[1.01]", children: [
-      "Ouvrir mon QR à ",
-      activeGate.id,
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Navigation, { className: "h-4 w-4" })
-    ] })
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
+      {
+        onClick: () => setShowQr(true),
+        className: "flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-medium text-primary-foreground glow-primary transition hover:scale-[1.01]",
+        children: [
+          "Ouvrir mon QR à ",
+          activeGate.id,
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Navigation, { className: "h-4 w-4" })
+        ]
+      }
+    ),
+    showQr && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "fixed inset-0 z-50 flex items-end justify-center bg-background/80 px-3 pb-3 backdrop-blur-sm", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full max-w-md rounded-3xl border border-white/10 bg-background p-5 shadow-elevated", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "QR d'acces stade" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-xl font-semibold", children: ticket.title }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-1 text-xs text-muted-foreground", children: [
+            activeGate.id,
+            " - ",
+            ticket.venue
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => setShowQr(false),
+            className: "rounded-full bg-white/5 p-2 text-muted-foreground",
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "h-5 w-5" })
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+        QRTicket,
+        {
+          seed: ticket.title.length * 2030,
+          sizeClassName: "w-44"
+        }
+      ) })
+    ] }) })
   ] });
 }
 function HeroStat({ label, value }) {
@@ -2256,138 +3226,117 @@ function MetaBadge({
     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "min-w-0 truncate text-xs text-muted-foreground", children: label })
   ] });
 }
-const JOINED_GROUPS_STORAGE_KEY = "fanpass:joinedCommunities:v1";
-const TEAMS$1 = [
-  "Maroc",
-  "France",
-  "Bresil",
-  "Espagne",
-  "Neutre"
-];
-const LANGUAGES = ["FR", "EN", "ES", "AR"];
-const PROFILE_OPTIONS = [
+const JOINED_GROUPS_STORAGE_KEY = "fanpass:joinedGroups:v1";
+const FALLBACK_GROUPS = [
   {
-    id: "solo",
-    label: "Solo",
-    detail: "Rejoindre un petit groupe",
-    icon: BadgeCheck
-  },
-  {
-    id: "family",
-    label: "Famille",
-    detail: "Trajet calme et zones assises",
-    icon: ShieldCheck
-  },
-  {
-    id: "tourist",
-    label: "Touriste",
-    detail: "Langues et assistance locale",
-    icon: MapPin
-  },
-  {
-    id: "local",
-    label: "Local",
-    detail: "Ambiance supporter marocain",
-    icon: BadgeCheck
-  },
-  { id: "group", label: "Groupe", detail: "Départ coordonné", icon: Users },
-  {
-    id: "calm",
-    label: "Calme",
-    detail: "Moins de foule, rythme doux",
-    icon: ShieldCheck
-  }
-];
-const FAN_GROUPS = [
-  {
-    id: "atlas-fr-gate-c",
+    id: "atlas-fr",
     name: "Atlas Gate C",
     team: "Maroc",
     language: "FR",
     city: "Casablanca",
     match: "Maroc vs Espagne",
-    profile: ["solo", "local", "group"],
+    profiles: ["solo", "local", "group"],
     size: 42,
     capacity: 60,
-    meetPoint: "Casa Port - sortie tram",
-    meetTime: "17:25",
+    meet_point: "Casa Port - sortie tram",
+    meet_time: "17:25",
     destination: "Grand Stade Hassan II - Gate C",
-    eventRecommendation: "Meet-up Supporters Atlas",
+    event_rec: "Meet-up Supporters Atlas",
     mood: "Intense",
-    safetyNote: "Guide FanPass présent, départ en corridor sécurisé.",
-    routeNote: "Départ groupe vers drop-off Nord puis marche finale."
+    safety: "Guide FanPass présent, corridor sécurisé.",
+    route: "Départ groupe vers drop-off Nord.",
+    gate: "gate-c",
+    verified: true,
+    ambiance: "festive",
+    score: 92
   },
   {
-    id: "morocco-en-tourists",
+    id: "morocco-en",
     name: "Morocco Welcome Crew",
     team: "Maroc",
     language: "EN",
     city: "Casablanca",
     match: "Maroc vs Espagne",
-    profile: ["solo", "tourist", "calm"],
+    profiles: ["solo", "tourist", "calm"],
     size: 27,
     capacity: 40,
-    meetPoint: "Marina Casablanca",
-    meetTime: "17:00",
-    destination: "Casablanca Corniche fan zone",
-    eventRecommendation: "Casablanca Corniche",
+    meet_point: "Marina Casablanca",
+    meet_time: "17:00",
+    destination: "Casablanca Corniche",
+    event_rec: "Casablanca Corniche",
     mood: "Social",
-    safetyNote: "Point facile à trouver, support EN/FR.",
-    routeNote: "Fan zone avant match puis navette vers Gate C."
+    safety: "Point facile, support EN/FR.",
+    route: "Fan zone avant match.",
+    gate: "gate-c",
+    verified: true,
+    ambiance: "tourisme",
+    score: 85
   },
   {
-    id: "family-rabat-ocean",
+    id: "family-rabat",
     name: "Family Ocean Route",
     team: "France",
     language: "FR",
     city: "Rabat",
     match: "France vs Bresil",
-    profile: ["family", "tourist", "calm"],
+    profiles: ["family", "tourist", "calm"],
     size: 18,
     capacity: 36,
-    meetPoint: "Bouregreg Marina",
-    meetTime: "15:45",
+    meet_point: "Bouregreg Marina",
+    meet_time: "15:45",
     destination: "Rabat Ocean Stage",
-    eventRecommendation: "Rabat Ocean Stage",
+    event_rec: "Rabat Ocean Stage",
     mood: "Famille",
-    safetyNote: "Zone assise, assistance enfants et départ anticipé.",
-    routeNote: "Parking Marina puis entrée Family."
+    safety: "Zone assise, assistance enfants.",
+    route: "Parking Marina.",
+    gate: "gate-e",
+    verified: true,
+    ambiance: "famille",
+    score: 78
   },
   {
-    id: "brasil-es-watch",
+    id: "brasil-es",
     name: "Brasil Watch Party ES",
     team: "Bresil",
     language: "ES",
     city: "Rabat",
     match: "France vs Bresil",
-    profile: ["solo", "group", "tourist"],
+    profiles: ["solo", "group", "tourist"],
     size: 31,
     capacity: 55,
-    meetPoint: "Place Al Barid",
-    meetTime: "15:30",
+    meet_point: "Place Al Barid",
+    meet_time: "15:30",
     destination: "Meet-up Supporters Atlas",
-    eventRecommendation: "Meet-up Supporters Atlas",
+    event_rec: "Meet-up Supporters Atlas",
     mood: "Social",
-    safetyNote: "Groupe temporaire avec modération FanPass.",
-    routeNote: "Départ collectif vers Gate E après check-in."
+    safety: "Groupe temporaire modéré.",
+    route: "Départ collectif vers Gate E.",
+    gate: "gate-e",
+    verified: true,
+    ambiance: "sociale",
+    score: 71
   },
   {
-    id: "espana-calm-casa",
+    id: "espana-calm",
     name: "Espana Calm Entry",
     team: "Espagne",
     language: "ES",
     city: "Casablanca",
     match: "Maroc vs Espagne",
-    profile: ["family", "tourist", "calm"],
+    profiles: ["family", "tourist", "calm"],
     size: 21,
     capacity: 48,
-    meetPoint: "Drop-off Anfa Nord",
-    meetTime: "18:05",
+    meet_point: "Drop-off Anfa Nord",
+    meet_time: "18:05",
     destination: "Grand Stade Hassan II - Gate D",
-    eventRecommendation: "Lancement Maillot Maroc 2030",
+    event_rec: "Lancement Maillot Maroc",
     mood: "Calme",
-    safetyNote: "Chemin moins dense et redirection si Gate C saturée.",
-    routeNote: "Marche finale via périmètre Ouest."
+    safety: "Chemin moins dense.",
+    route: "Marche via périmètre Ouest.",
+    gate: "gate-c",
+    verified: true,
+    ambiance: "calme",
+    score: 65
   },
   {
     id: "neutral-marrakech",
@@ -2396,230 +3345,261 @@ const FAN_GROUPS = [
     language: "EN",
     city: "Marrakech",
     match: "Argentine vs Allemagne",
-    profile: ["tourist", "solo", "group"],
+    profiles: ["tourist", "solo", "group"],
     size: 34,
     capacity: 52,
-    meetPoint: "Menara Mall",
-    meetTime: "17:40",
+    meet_point: "Menara Mall",
+    meet_time: "17:40",
     destination: "Marrakech Medina Live",
-    eventRecommendation: "Marrakech Medina Live",
+    event_rec: "Marrakech Medina Live",
     mood: "Social",
-    safetyNote: "Brief culturel et assistance tourisme.",
-    routeNote: "Drop-off Menara puis marche sécurisée."
+    safety: "Brief culturel et assistance.",
+    route: "Drop-off Menara.",
+    gate: "gate-b",
+    verified: false,
+    ambiance: "tourisme",
+    score: 58
   }
 ];
-function readJoinedGroups() {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(JOINED_GROUPS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
-  } catch {
-    return [];
-  }
-}
-function getMatchScore(group, team, language, profile, activeTicket) {
-  let score = 30;
-  if (group.match === activeTicket.title) score += 22;
-  if (group.city === activeTicket.city) score += 16;
-  if (group.team === team || group.team === "Neutre") score += 18;
-  if (group.language === language) score += 14;
-  if (group.profile.includes(profile)) score += 18;
-  const remaining = group.capacity - group.size;
-  if (remaining > 8) score += 6;
-  return Math.min(score, 99);
-}
+const TABS = [
+  { id: "tous", label: "Tous" },
+  { id: "equipe", label: "Équipe" },
+  { id: "langue", label: "Langue" },
+  { id: "ambiance", label: "Ambiance" },
+  { id: "gate", label: "Gate" },
+  { id: "postmatch", label: "Post-match" }
+];
 function moodClass(mood) {
   if (mood === "Intense") return "bg-destructive/20 text-destructive";
   if (mood === "Famille") return "bg-success/20 text-success";
   if (mood === "Calme") return "bg-primary/15 text-primary-glow";
   return "bg-primary/20 text-primary-glow";
 }
-function profileLabel(profile) {
-  return PROFILE_OPTIONS.find((option) => option.id === profile)?.label ?? profile;
+function readJoinedIds() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(JOINED_GROUPS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
 }
 function GroupesSection() {
-  const activeTicket = useActiveTicket();
-  const [team, setTeam] = reactExports.useState("Maroc");
-  const [language, setLanguage] = reactExports.useState("FR");
-  const [profile, setProfile] = reactExports.useState("solo");
-  const [joinedGroups, setJoinedGroups] = reactExports.useState([]);
+  const { token } = useAuth();
+  const ticket = useActiveTicket();
+  const [groups, setGroups] = reactExports.useState(FALLBACK_GROUPS);
+  const [tab, setTab] = reactExports.useState("tous");
+  const [joinedIds, setJoinedIds] = reactExports.useState([]);
+  const [hydrated, setHydrated] = reactExports.useState(false);
+  const [showCreate, setShowCreate] = reactExports.useState(false);
+  const [loading, setLoading] = reactExports.useState(true);
   reactExports.useEffect(() => {
-    setJoinedGroups(readJoinedGroups());
-    if (activeTicket.title.includes("Maroc")) setTeam("Maroc");
-    else if (activeTicket.title.includes("France")) setTeam("France");
-    else if (activeTicket.title.includes("Bresil")) setTeam("Bresil");
-    else if (activeTicket.title.includes("Espagne")) setTeam("Espagne");
-  }, [activeTicket.title]);
+    setJoinedIds(readJoinedIds());
+    setHydrated(true);
+  }, []);
   reactExports.useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!hydrated || typeof window === "undefined") return;
     window.localStorage.setItem(
       JOINED_GROUPS_STORAGE_KEY,
-      JSON.stringify(joinedGroups)
+      JSON.stringify(joinedIds)
     );
-  }, [joinedGroups]);
-  const rankedGroups = reactExports.useMemo(() => {
-    return FAN_GROUPS.map((group) => ({
-      group,
-      score: getMatchScore(group, team, language, profile, activeTicket)
-    })).sort((a, b) => b.score - a.score);
-  }, [activeTicket, language, profile, team]);
-  const bestMatch = rankedGroups[0];
-  function toggleJoin(groupId) {
-    setJoinedGroups(
-      (current) => current.includes(groupId) ? current.filter((id) => id !== groupId) : [groupId, ...current]
+  }, [hydrated, joinedIds]);
+  reactExports.useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    const t = setTimeout(() => setLoading(false), 4e3);
+    (async () => {
+      try {
+        const res = await fanpassFetch("/community/groups", token, {
+          signal: AbortSignal.timeout(4e3)
+        });
+        if (res.ok) setGroups(await res.json());
+      } catch {
+      } finally {
+        clearTimeout(t);
+        setLoading(false);
+      }
+    })();
+    return () => clearTimeout(t);
+  }, [token]);
+  const filtered = reactExports.useMemo(() => {
+    if (tab === "tous") return groups;
+    if (tab === "equipe")
+      return groups.filter(
+        (g) => g.team === (ticket.title?.includes("Maroc") ? "Maroc" : g.team)
+      );
+    if (tab === "langue") return groups.filter((g) => g.language === "FR");
+    if (tab === "ambiance")
+      return groups.filter(
+        (g) => g.ambiance === "festive" || g.ambiance === "sociale"
+      );
+    if (tab === "gate") return groups.filter((g) => g.gate === "gate-c");
+    if (tab === "postmatch") return groups.slice(0, 3);
+    return groups;
+  }, [groups, tab, ticket]);
+  const bestMatch = filtered.length > 0 ? filtered.reduce((a, b) => a.score > b.score ? a : b) : null;
+  async function toggleJoin(id) {
+    setJoinedIds(
+      (prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [id, ...prev]
     );
+    if (!token || joinedIds.includes(id)) return;
+    try {
+      await fanpassFetch(`/community/groups/join/${id}`, token, {
+        signal: AbortSignal.timeout(3e3)
+      });
+    } catch {
+    }
   }
+  if (showCreate)
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(
+      CreateGroupModal,
+      {
+        ticket,
+        onClose: () => setShowCreate(false),
+        onCreated: (group) => {
+          setGroups((current) => [group, ...current]);
+          setJoinedIds((current) => [group.id, ...current]);
+        }
+      }
+    );
+  if (loading)
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-4", children: [...Array(3)].map((_, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "glass rounded-3xl p-6 animate-pulse space-y-3",
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-4 w-2/3 bg-white/5 rounded-lg" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-3 w-full bg-white/5 rounded-lg" })
+        ]
+      },
+      i
+    )) });
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-5", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass rounded-3xl p-5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-3", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(BadgeCheck, { className: "h-5 w-5 text-primary-glow" }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Contexte billet" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-lg font-semibold", children: activeTicket.title }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-10 w-10 place-items-center rounded-xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(BadgeCheck, { className: "h-5 w-5 text-primary-glow" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Contexte" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-lg font-semibold", children: ticket.title }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-1 text-xs text-muted-foreground", children: [
-          activeTicket.venue,
-          " - ",
-          activeTicket.date,
-          " - ",
-          activeTicket.gate
+          ticket.venue,
+          " · ",
+          ticket.date,
+          " · ",
+          ticket.gate
         ] })
       ] })
     ] }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-3", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Préférences" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-xl font-semibold", children: "Ajuster le matching" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(SlidersHorizontal, { className: "h-5 w-5 text-primary-glow" })
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 rounded-2xl bg-white/5 p-1", children: TABS.map((t) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "button",
+      {
+        onClick: () => setTab(t.id),
+        className: `rounded-xl px-1 py-2 text-[0.68rem] font-semibold transition sm:text-xs ${tab === t.id ? "bg-primary text-primary-foreground shadow-elevated" : "text-muted-foreground hover:text-foreground"}`,
+        children: t.label
+      },
+      t.id
+    )) }),
+    bestMatch && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5 ring-1 ring-success/20", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 mb-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Star, { className: "h-4 w-4 text-success" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "label-xs text-success", children: "Meilleure correspondance" })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 space-y-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          PreferenceRow,
-          {
-            icon: BadgeCheck,
-            label: "Équipe",
-            options: TEAMS$1,
-            value: team,
-            onChange: (value) => setTeam(value)
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          PreferenceRow,
-          {
-            icon: Languages,
-            label: "Langue",
-            options: LANGUAGES,
-            value: language,
-            onChange: (value) => setLanguage(value)
-          }
-        )
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4 grid grid-cols-2 gap-2", children: PROFILE_OPTIONS.map((option) => {
-        const Icon = option.icon;
-        const active = profile === option.id;
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "button",
-          {
-            type: "button",
-            onClick: () => setProfile(option.id),
-            className: `rounded-2xl p-3 text-left transition ${active ? "bg-primary/15 ring-1 ring-primary/40" : "bg-white/5 hover:bg-white/10"}`,
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { className: "h-4 w-4 text-primary-glow" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold", children: option.label })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-xs text-muted-foreground", children: option.detail })
-            ]
-          },
-          option.id
-        );
-      }) })
-    ] }),
-    bestMatch && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Meilleure correspondance" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-2 flex items-start justify-between gap-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-4", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-xl font-semibold", children: bestMatch.group.name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-xl font-semibold", children: bestMatch.name }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-1 text-sm text-muted-foreground", children: [
-            bestMatch.group.match,
-            " - ",
-            bestMatch.group.city
+            bestMatch.match,
+            " · ",
+            bestMatch.city
           ] })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(ScoreBadge, { score: bestMatch.score })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-14 w-14 place-items-center rounded-2xl bg-success/15 text-success", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-display text-lg font-semibold", children: [
+            bestMatch.score,
+            "%"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs", children: "fit" })
+        ] }) })
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-2 gap-2", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: MapPin, label: bestMatch.group.meetPoint }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(
-          MetaBadge,
-          {
-            icon: Clock,
-            label: `Départ ${bestMatch.group.meetTime}`
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Languages, label: bestMatch.group.language }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: MapPin, label: bestMatch.meet_point }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Clock, label: `Départ ${bestMatch.meet_time}` }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Languages, label: bestMatch.language }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           MetaBadge,
           {
             icon: Users,
-            label: `${bestMatch.group.size}/${bestMatch.group.capacity} fans`
+            label: `${bestMatch.size}/${bestMatch.capacity} fans`
           }
         )
       ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: rankedGroups.map(({ group, score }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+    tab !== "tous" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-2xl bg-primary/10 px-4 py-3 text-sm text-primary-glow", children: [
+      tab === "equipe" && "🎯 Groupes qui supportent la même équipe que vous. Ambiance garantie.",
+      tab === "langue" && "🗣️ Groupes francophones pour échanger facilement avant, pendant et après le match.",
+      tab === "ambiance" && "🎉 Groupes festifs et sociaux pour vivre le match à fond.",
+      tab === "gate" && "🚪 Groupes qui vont vers la même gate que vous. Trajet collectif sécurisé.",
+      tab === "postmatch" && "🌙 Continuez l'expérience après le match : retours groupés, fan zones nocturnes."
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: filtered.map((g) => /* @__PURE__ */ jsxRuntimeExports.jsx(
       GroupCard,
       {
-        group,
-        score,
-        joined: joinedGroups.includes(group.id),
-        onJoin: () => toggleJoin(group.id)
+        group: g,
+        joined: joinedIds.includes(g.id),
+        onJoin: () => toggleJoin(g.id)
       },
-      group.id
-    )) })
-  ] });
-}
-function PreferenceRow({
-  icon: Icon,
-  label,
-  options,
-  value,
-  onChange
-}) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { className: "h-4 w-4 text-primary-glow" }),
-      label
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-4 gap-1 rounded-2xl bg-white/5 p-1", children: options.map((option) => {
-      const active = option === value;
-      return /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
+      g.id
+    )) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
+      {
+        onClick: () => setShowCreate(true),
+        className: "w-full rounded-2xl border-2 border-dashed border-white/10 bg-white/5 py-4 text-sm text-muted-foreground hover:bg-white/10 transition flex items-center justify-center gap-2",
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { className: "h-4 w-4" }),
+          " Créer un groupe"
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow mb-3", children: "Après le match" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-2", children: [
         {
-          type: "button",
-          onClick: () => onChange(option),
-          className: `rounded-xl px-2 py-2 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground shadow-elevated" : "text-muted-foreground hover:text-foreground"}`,
-          children: option
+          icon: Users,
+          title: "After-match Casa Port",
+          detail: "Retour collectif vers centre-ville."
         },
-        option
-      );
-    }) })
+        {
+          icon: Sparkles,
+          title: "Fan Zone nocturne",
+          detail: "Corniche ouverte jusqu'à 01:00 avec DJ."
+        },
+        {
+          icon: ShieldCheck,
+          title: "Navette retour",
+          detail: "Départ groupé 22:45 depuis Gate C."
+        }
+      ].map((r) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "flex items-start gap-3 rounded-2xl bg-white/5 p-4",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(r.icon, { className: "h-4 w-4 mt-0.5 text-primary-glow shrink-0" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold", children: r.title }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-xs text-muted-foreground", children: r.detail })
+            ] })
+          ]
+        },
+        r.title
+      )) })
+    ] })
   ] });
-}
-function ScoreBadge({ score }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-success/15 text-success", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-display text-lg font-semibold", children: [
-      score,
-      "%"
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs", children: "fit" })
-  ] }) });
 }
 function GroupCard({
   group,
-  score,
   joined,
   onJoin
 }) {
@@ -2641,24 +3621,34 @@ function GroupCard({
               ),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "label-xs rounded-full bg-white/5 px-2 py-1 text-muted-foreground", children: [
                 group.team,
-                " - ",
+                " · ",
                 group.language
+              ] }),
+              group.verified && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "label-xs rounded-full bg-success/15 px-2 py-1 text-success flex items-center gap-1", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(BadgeCheck, { className: "h-3 w-3" }),
+                " Vérifié"
               ] })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "mt-3 font-display text-lg font-semibold", children: group.name }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-sm text-muted-foreground", children: group.match })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(ScoreBadge, { score })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-14 w-14 place-items-center rounded-2xl bg-success/15 text-success", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "font-display text-lg font-semibold", children: [
+              group.score,
+              "%"
+            ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs", children: "fit" })
+          ] }) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-2 gap-2 text-xs", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: MapPin, label: group.meetPoint }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: CalendarDays, label: group.meetTime }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: MapPin, label: group.meet_point }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: CalendarDays, label: group.meet_time }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Navigation, label: group.destination }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Sparkles, label: group.eventRecommendation })
+          /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Sparkles, label: group.event_rec })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 rounded-2xl bg-white/5 p-3", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between gap-3 text-xs", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-muted-foreground", children: "Capacité groupe" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between text-xs", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-muted-foreground", children: "Capacité" }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-semibold", children: [
               group.size,
               "/",
@@ -2674,65 +3664,248 @@ function GroupCard({
           ) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 space-y-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(InfoLine, { icon: ShieldCheck, text: group.safetyNote }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(InfoLine, { icon: Navigation, text: group.routeNote }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(IL, { icon: ShieldCheck, text: group.safety }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(IL, { icon: Navigation, text: group.route }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(IL, { icon: Users, text: `Profils: ${group.profiles.join(", ")}` }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
-            InfoLine,
+            IL,
             {
-              icon: Users,
-              text: `Profils: ${group.profile.map(profileLabel).join(", ")}`
+              icon: MapPin,
+              text: `Gate: ${group.gate.replace("gate-", "").toUpperCase()}`
             }
           )
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
           "button",
           {
-            type: "button",
             onClick: onJoin,
-            className: `w-full rounded-2xl px-3 py-3 text-xs font-medium transition ${joined ? "bg-success text-success-foreground" : "bg-primary text-primary-foreground glow-primary"}`,
-            children: joined ? "Groupe rejoint" : "Rejoindre"
+            className: `mt-4 w-full rounded-2xl py-3 text-xs font-medium transition ${joined ? "bg-success text-success-foreground" : "bg-primary text-primary-foreground glow-primary"}`,
+            children: joined ? "✓ Groupe rejoint" : "Rejoindre"
           }
-        ) })
+        )
       ]
     }
   );
 }
-function InfoLine({ icon: Icon, text }) {
+function IL({ icon: I, text }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-2 text-xs text-muted-foreground", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { className: "mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-glow" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(I, { className: "mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-glow" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: text })
   ] });
 }
-const FAN_EVENTS = [
+function CreateGroupModal({
+  ticket,
+  onClose,
+  onCreated
+}) {
+  const [name, setName] = reactExports.useState("");
+  const [team, setTeam] = reactExports.useState("Maroc");
+  const [language, setLanguage] = reactExports.useState("FR");
+  const [ambiance, setAmbiance] = reactExports.useState("sociale");
+  const [meetPoint, setMeetPoint] = reactExports.useState("");
+  const [meetTime, setMeetTime] = reactExports.useState("");
+  const [capacity, setCapacity] = reactExports.useState("50");
+  const [created, setCreated] = reactExports.useState(false);
+  function handleCreate() {
+    if (!name || !meetPoint || !meetTime) return;
+    onCreated({
+      id: `custom-${Date.now()}`,
+      name,
+      team,
+      language,
+      city: ticket.city,
+      match: ticket.title,
+      profiles: ["group"],
+      size: 1,
+      capacity: Math.max(2, Number(capacity) || 50),
+      meet_point: meetPoint,
+      meet_time: meetTime,
+      destination: `${ticket.venue} - ${ticket.gate}`,
+      event_rec: "Recommandation FanPass",
+      mood: ambiance === "calme" ? "Calme" : "Social",
+      safety: "Groupe cree par un fan, verification en attente.",
+      route: `Depart collectif vers ${ticket.gate}.`,
+      gate: ticket.gate.toLowerCase().replace(" ", "-"),
+      verified: false,
+      ambiance,
+      score: 70
+    });
+    setCreated(true);
+    setTimeout(onClose, 1500);
+  }
+  if (created)
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col items-center justify-center gap-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-20 w-20 rounded-full bg-success/15 grid place-items-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(BadgeCheck, { className: "h-10 w-10 text-success" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-xl font-semibold", children: "Groupe créé !" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-sm text-muted-foreground", children: [
+        'Votre groupe "',
+        name,
+        '" est en attente de vérification.'
+      ] })
+    ] });
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "sticky top-0 z-40 glass border-b border-white/5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mx-auto max-w-md px-5 py-3 flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: onClose,
+          className: "text-sm text-muted-foreground hover:text-foreground",
+          children: "Annuler"
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold", children: "Créer un groupe" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: handleCreate,
+          disabled: !name || !meetPoint || !meetTime,
+          className: "text-sm font-semibold text-primary-glow disabled:opacity-30",
+          children: "Créer"
+        }
+      )
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "flex-1 mx-auto w-full max-w-md px-5 pt-6 pb-8 space-y-5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block mb-2", children: "Nom du groupe" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: name,
+            onChange: (e) => setName(e.target.value),
+            placeholder: "Ex: Atlas Gate C",
+            className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block mb-2", children: "Équipe" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: team,
+              onChange: (e) => setTeam(e.target.value),
+              className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: "Maroc" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: "France" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: "Bresil" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: "Espagne" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: "Neutre" })
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block mb-2", children: "Langue" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "select",
+            {
+              value: language,
+              onChange: (e) => setLanguage(e.target.value),
+              className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: "FR" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: "EN" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: "ES" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { children: "AR" })
+              ]
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block mb-2", children: "Ambiance" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-1 rounded-2xl bg-white/5 p-1", children: ["festive", "calme", "familiale", "sociale", "tourisme"].map(
+          (a) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: () => setAmbiance(a),
+              className: `rounded-xl px-2 py-2 text-xs font-semibold ${ambiance === a ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`,
+              children: a
+            },
+            a
+          )
+        ) })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block mb-2", children: "Point de rendez-vous" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "input",
+          {
+            value: meetPoint,
+            onChange: (e) => setMeetPoint(e.target.value),
+            placeholder: "Ex: Casa Port - sortie tram",
+            className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block mb-2", children: "Heure de rendez-vous" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              value: meetTime,
+              onChange: (e) => setMeetTime(e.target.value),
+              placeholder: "17:25",
+              className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "label-xs text-muted-foreground block mb-2", children: "Capacité max" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "input",
+            {
+              value: capacity,
+              onChange: (e) => setCapacity(e.target.value),
+              placeholder: "50",
+              type: "number",
+              className: "w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-2xl bg-primary/10 p-4 text-xs text-muted-foreground", children: "Votre groupe sera soumis à vérification avant d'apparaître dans les recommandations." })
+    ] })
+  ] });
+}
+const RESERVATIONS_STORAGE_KEY = "fanpass:eventReservations:v1";
+const FALLBACK_EVENTS = [
   {
     id: "casa-corniche",
-    category: "official",
+    category: "fan_zone",
     title: "Casablanca Corniche",
     subtitle: "Fan zone officielle",
-    linkedMatch: "Maroc vs Espagne",
     city: "Casablanca",
     venue: "Corniche Ain Diab",
     date: "14 juin 2030",
     time: "16:00 - 01:00",
-    price: "À partir de 220 MAD",
+    price: "Gratuit (réservation)",
     capacity: 82,
     safety: "Dense",
-    description: "Écran géant, DJ live, food court et zone sponsors pour vivre le match d'ouverture avant et après le stade.",
+    is_official: true,
+    verified: true,
+    description: "Écran géant, DJ live, food court et zone sponsors.",
     program: [
       "16:00 ouverture",
       "18:30 show supporters",
       "22:15 DJ post-match"
     ],
     partners: ["ONMT", "Maroc Telecom", "Coca-Cola"],
-    merchOffer: "Écharpe Maroc 2030 - retrait fan zone",
-    routeHint: "Tram Casa Port + navette Corniche"
+    merch: "Écharpe Maroc 2030",
+    route: "Tram Casa Port + navette Corniche",
+    team: "Maroc",
+    ambiance: "festive",
+    languages: ["FR", "AR", "EN"],
+    linked_match: "Maroc vs Espagne"
   },
   {
     id: "marrakech-medina",
-    category: "official",
+    category: "fan_zone",
     title: "Marrakech Medina Live",
     subtitle: "Football, concerts et artisans",
-    linkedMatch: "Argentine vs Allemagne",
     city: "Marrakech",
     venue: "Esplanade Menara",
     date: "4 juillet 2030",
@@ -2740,348 +3913,409 @@ const FAN_EVENTS = [
     price: "À partir de 180 MAD",
     capacity: 68,
     safety: "Controle",
-    description: "Une fan zone officielle qui mêle football mondial, culture marocaine, concerts et village artisans.",
+    is_official: true,
+    verified: true,
+    description: "Fan zone mêlant football mondial et culture marocaine.",
     program: [
       "15:00 village artisans",
       "18:00 concert Gnawa",
       "23:00 after match"
     ],
     partners: ["Visit Marrakech", "Royal Air Maroc"],
-    merchOffer: "Pack souvenir Menara",
-    routeHint: "Drop-off Menara puis marche sécurisée"
+    merch: "Pack souvenir Menara",
+    route: "Drop-off Menara",
+    team: "Neutre",
+    ambiance: "culturelle",
+    languages: ["FR", "EN", "AR"],
+    linked_match: "Argentine vs Allemagne"
   },
   {
-    id: "rabat-ocean-stage",
-    category: "family",
+    id: "rabat-ocean",
+    category: "watch_party",
     title: "Rabat Ocean Stage",
-    subtitle: "Familles, food court, live stats",
-    linkedMatch: "France vs Bresil",
+    subtitle: "Familles, food court",
     city: "Rabat",
     venue: "Bouregreg Fan Park",
     date: "18 juin 2030",
     time: "14:00 - 23:30",
-    price: "À partir de 160 MAD",
+    price: "160 MAD",
     capacity: 46,
     safety: "Calme",
-    description: "Événement famille et touristes avec zone assise, stats live et animations enfants.",
-    program: [
-      "14:00 ouverture famille",
-      "17:30 quiz football",
-      "20:15 highlights"
-    ],
+    is_official: false,
+    verified: true,
+    description: "Zone assise, stats live et animations enfants.",
+    program: ["14:00 ouverture", "17:30 quiz", "20:15 highlights"],
     partners: ["Bouregreg Marina", "Decathlon"],
-    merchOffer: "Maillot enfant - offre famille",
-    routeHint: "Parking Marina + entrée Family"
+    merch: "Maillot enfant",
+    route: "Parking Marina + entrée Family",
+    team: "Neutre",
+    ambiance: "famille",
+    languages: ["FR", "AR"],
+    linked_match: "France vs Bresil"
   },
   {
     id: "jersey-launch",
-    category: "club",
+    category: "club_event",
     title: "Lancement Maillot Maroc 2030",
-    subtitle: "Showcase officiel et précommande",
-    linkedMatch: "Maroc vs Espagne",
+    subtitle: "Showcase officiel",
     city: "Casablanca",
     venue: "FanPass Arena Pop-up",
     date: "13 juin 2030",
     time: "19:00 - 22:00",
-    price: "À partir de 120 MAD",
+    price: "120 MAD",
     capacity: 54,
     safety: "Controle",
-    description: "Événement officiel autour du maillot, des souvenirs Coupe du Monde et des produits locaux partenaires.",
-    program: [
-      "19:00 reveal maillot",
-      "20:00 rencontre légendes",
-      "21:00 précommande"
-    ],
-    partners: ["FRMF", "Puma", "Artisans Maroc"],
-    merchOffer: "Réduction 15% sur précommande",
-    routeHint: "Taxi/VTC partenaire recommandé"
-  },
-  {
-    id: "supporters-meetup",
-    category: "watch",
-    title: "Meet-up Supporters Atlas",
-    subtitle: "Point de rencontre avant stade",
-    linkedMatch: "France vs Bresil",
-    city: "Rabat",
-    venue: "Place Al Barid",
-    date: "18 juin 2030",
-    time: "15:30 - 17:00",
-    price: "À partir de 90 MAD",
-    capacity: 38,
-    safety: "Calme",
-    description: "Groupe temporaire pour rejoindre le stade avec des fans de la même équipe et un guide FanPass.",
-    program: [
-      "15:30 check-in",
-      "16:15 chants supporters",
-      "17:00 départ groupe"
-    ],
-    partners: ["Tram Rabat", "Fan Embassy"],
-    merchOffer: "Badge groupe offert",
-    routeHint: "Départ collectif vers Gate E"
+    is_official: true,
+    verified: true,
+    description: "Révélation maillot, rencontre légendes, précommande.",
+    program: ["19:00 reveal", "20:00 légendes", "21:00 précommande"],
+    partners: ["FRMF", "Puma"],
+    merch: "-15% précommande",
+    route: "Taxi/VTC partenaire",
+    team: "Maroc",
+    ambiance: "premium",
+    languages: ["FR", "AR"],
+    linked_match: "Maroc vs Espagne"
   },
   {
     id: "sponsor-skills",
     category: "sponsor",
     title: "Skills Challenge Atlas",
-    subtitle: "Activation sponsor et mini-tournoi",
-    linkedMatch: "Maroc vs Espagne",
+    subtitle: "Mini-tournoi sponsor",
     city: "Casablanca",
     venue: "Village Sponsors Nord",
     date: "14 juin 2030",
     time: "12:00 - 18:30",
-    price: "Pass événement requis",
+    price: "Pass requis",
     capacity: 61,
     safety: "Controle",
-    description: "Défis football, mini-tournoi communautaire et lots partenaires avant le match.",
-    program: ["12:00 inscriptions", "14:00 tournoi", "17:30 remise des lots"],
+    is_official: false,
+    verified: true,
+    description: "Défis football et lots partenaires.",
+    program: ["12:00 inscriptions", "14:00 tournoi", "17:30 lots"],
     partners: ["Adidas", "Orange", "CAF"],
-    merchOffer: "Ballon collector sponsor",
-    routeHint: "Accessible depuis corridor Nord"
+    merch: "Ballon collector",
+    route: "Corridor Nord",
+    team: "Neutre",
+    ambiance: "festive",
+    languages: ["FR", "EN", "AR"],
+    linked_match: "Maroc vs Espagne"
+  },
+  {
+    id: "supporters-meetup",
+    category: "community",
+    title: "Meet-up Supporters Atlas",
+    subtitle: "Point de rencontre",
+    city: "Rabat",
+    venue: "Place Al Barid",
+    date: "18 juin 2030",
+    time: "15:30 - 17:00",
+    price: "Gratuit",
+    capacity: 38,
+    safety: "Calme",
+    is_official: false,
+    verified: false,
+    description: "Groupe temporaire vers le stade.",
+    program: ["15:30 check-in", "16:15 chants", "17:00 départ"],
+    partners: ["Tram Rabat"],
+    merch: "Badge offert",
+    route: "Départ collectif Gate E",
+    team: "Neutre",
+    ambiance: "sociale",
+    languages: ["FR", "EN"],
+    linked_match: "France vs Bresil"
   }
 ];
-const FILTER_ITEMS$2 = [
+const CATEGORIES = [
   { id: "all", label: "Tous" },
-  { id: "official", label: "Zones" },
-  { id: "watch", label: "Meet" },
-  { id: "sponsor", label: "Sponsor" },
-  { id: "club", label: "Club" },
-  { id: "family", label: "Famille" }
+  { id: "fan_zone", label: "Fan Zones" },
+  { id: "watch_party", label: "Watch" },
+  { id: "sponsor", label: "Sponsors" },
+  { id: "club_event", label: "Club" },
+  { id: "community", label: "Communauté" }
 ];
-function categoryLabel$2(category) {
-  if (category === "official") return "Fan zone officielle";
-  if (category === "watch") return "Meet-up / watch party";
-  if (category === "sponsor") return "Activation sponsor";
-  if (category === "club") return "Club & merch";
-  return "Famille / tourisme";
-}
-function categoryIcon$1(category) {
-  if (category === "official") return Sparkles;
-  if (category === "watch") return Users;
-  if (category === "sponsor") return Trophy;
-  if (category === "club") return ShoppingBag;
+function catIcon(c) {
+  if (c === "fan_zone") return Sparkles;
+  if (c === "watch_party") return Users;
+  if (c === "sponsor") return Trophy;
+  if (c === "club_event") return ShoppingBag;
   return CircleCheck;
 }
-function safetyClass(safety) {
-  if (safety === "Dense") return "bg-destructive/20 text-destructive";
-  if (safety === "Controle") return "bg-primary/20 text-primary-glow";
+function catLabel(c) {
+  if (c === "fan_zone") return "Fan zone officielle";
+  if (c === "watch_party") return "Watch party";
+  if (c === "sponsor") return "Activation sponsor";
+  if (c === "club_event") return "Club & merch";
+  return "Communauté";
+}
+function safetyClass(s) {
+  if (s === "Dense") return "bg-destructive/20 text-destructive";
+  if (s === "Controle") return "bg-primary/20 text-primary-glow";
   return "bg-success/20 text-success";
 }
+function readReservedIds() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(RESERVATIONS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
 function EvenementsSection() {
-  const activeTicket = useActiveTicket();
-  const [filter, setFilter] = reactExports.useState("all");
-  const [selectedEventId, setSelectedEventId] = reactExports.useState(FAN_EVENTS[0].id);
-  const visibleEvents = reactExports.useMemo(() => {
-    const filtered = filter === "all" ? FAN_EVENTS : FAN_EVENTS.filter((event) => event.category === filter);
-    return [...filtered].sort((a, b) => {
-      const aLinked = a.linkedMatch === activeTicket.title ? 0 : 1;
-      const bLinked = b.linkedMatch === activeTicket.title ? 0 : 1;
-      return aLinked - bLinked;
-    });
-  }, [activeTicket.title, filter]);
-  const selectedEvent = visibleEvents.find((event) => event.id === selectedEventId) ?? visibleEvents[0] ?? FAN_EVENTS[0];
+  const { token } = useAuth();
+  const ticket = useActiveTicket();
+  const [events, setEvents] = reactExports.useState(FALLBACK_EVENTS);
+  const [category, setCategory] = reactExports.useState("all");
+  const [selectedId, setSelectedId] = reactExports.useState(FALLBACK_EVENTS[0].id);
+  const [reservedIds, setReservedIds] = reactExports.useState([]);
+  const [hydrated, setHydrated] = reactExports.useState(false);
+  const [routePreview, setRoutePreview] = reactExports.useState(null);
+  const [loading, setLoading] = reactExports.useState(true);
   reactExports.useEffect(() => {
-    if (!visibleEvents.some((event) => event.id === selectedEventId)) {
-      setSelectedEventId(visibleEvents[0]?.id ?? FAN_EVENTS[0].id);
+    setReservedIds(readReservedIds());
+    setHydrated(true);
+  }, []);
+  reactExports.useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    window.localStorage.setItem(
+      RESERVATIONS_STORAGE_KEY,
+      JSON.stringify(reservedIds)
+    );
+  }, [hydrated, reservedIds]);
+  reactExports.useEffect(() => {
+    if (!token) {
+      setLoading(false);
+      return;
     }
-  }, [selectedEventId, visibleEvents]);
+    const t = setTimeout(() => setLoading(false), 4e3);
+    (async () => {
+      try {
+        const r = await fanpassFetch("/events", token, {
+          signal: AbortSignal.timeout(4e3)
+        });
+        if (r.ok) setEvents(await r.json());
+      } catch {
+      } finally {
+        clearTimeout(t);
+        setLoading(false);
+      }
+    })();
+    return () => clearTimeout(t);
+  }, [token]);
+  const filtered = reactExports.useMemo(
+    () => category === "all" ? events : events.filter((e) => e.category === category),
+    [events, category]
+  );
+  const selected = filtered.find((e) => e.id === selectedId) ?? filtered[0] ?? FALLBACK_EVENTS[0];
+  async function reserve(id) {
+    setReservedIds((prev) => prev.includes(id) ? prev : [...prev, id]);
+    if (!token) return;
+    try {
+      await fanpassFetch(`/events/${id}/reserve`, token, {
+        signal: AbortSignal.timeout(3e3)
+      });
+    } catch {
+    }
+  }
+  function openRoute(event) {
+    setRoutePreview({
+      eventId: event.id,
+      title: event.title,
+      detail: `${event.route} depuis ${ticket.city}. Arrivee : ${event.venue}.`
+    });
+  }
+  if (loading)
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-4", children: [...Array(3)].map((_, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "glass rounded-3xl p-6 animate-pulse space-y-3",
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-4 w-2/3 bg-white/5 rounded-lg" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-3 w-full bg-white/5 rounded-lg" })
+        ]
+      },
+      i
+    )) });
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-5", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(FilterBar, { items: FILTER_ITEMS$2, activeId: filter, onChange: setFilter }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      FilterBar,
+      {
+        items: CATEGORIES,
+        activeId: category,
+        onChange: setCategory
+      }
+    ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-4", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Carte des events" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-xl font-semibold", children: selectedEvent.city }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-2 text-sm text-muted-foreground", children: "FANPASS ne référence que les événements utiles au parcours supporter." })
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "label-xs text-primary-glow", children: catLabel(selected.category) }),
+            selected.is_official && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "label-xs rounded-full bg-success/15 px-2 py-1 text-success flex items-center gap-1", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx(BadgeCheck, { className: "h-3 w-3" }),
+              " Officiel"
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-xl font-semibold", children: selected.title }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-1 text-xs text-muted-foreground", children: [
+            selected.subtitle,
+            " · ",
+            selected.city
+          ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(
           "span",
           {
-            className: `label-xs rounded-full px-2 py-1 ${safetyClass(selectedEvent.safety)}`,
-            children: selectedEvent.safety
+            className: `label-xs rounded-full px-2 py-1 ${safetyClass(selected.safety)}`,
+            children: selected.safety
           }
         )
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(EventsMap, { events: visibleEvents, selectedEventId: selectedEvent.id })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-4 text-sm text-muted-foreground", children: selected.description }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-2 gap-2 text-xs", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: MapPin, label: selected.venue }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          MetaBadge,
+          {
+            icon: CalendarDays,
+            label: `${selected.date} · ${selected.time}`
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Ticket, label: selected.price }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Flame, label: `Capacité ${selected.capacity}%` })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4 h-1.5 overflow-hidden rounded-full bg-white/5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "div",
+        {
+          className: "h-full rounded-full bg-gradient-to-r from-success via-primary-glow to-destructive",
+          style: { width: `${selected.capacity}%` }
+        }
+      ) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-2 gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => reserve(selected.id),
+            className: `rounded-2xl py-3 text-xs font-medium transition ${reservedIds.includes(selected.id) ? "bg-success text-success-foreground" : "bg-primary text-primary-foreground glow-primary"}`,
+            children: reservedIds.includes(selected.id) ? "✓ Réservé" : "Réserver"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => openRoute(selected),
+            className: "glass rounded-2xl py-3 text-xs font-medium",
+            children: "Itinéraire"
+          }
+        )
+      ] })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: visibleEvents.map((event) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-      EventCard,
-      {
-        event,
-        selected: event.id === selectedEvent.id,
-        linked: event.linkedMatch === activeTicket.title,
-        onSelect: () => setSelectedEventId(event.id)
-      },
-      event.id
-    )) }),
+    routePreview && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5 ring-1 ring-primary/20", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Itineraire event" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-lg font-semibold", children: routePreview.title }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-2 text-sm text-muted-foreground", children: routePreview.detail }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "button",
+        {
+          onClick: () => setRoutePreview(null),
+          className: "mt-4 rounded-2xl bg-white/5 px-4 py-2 text-xs font-medium",
+          children: "Fermer"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: filtered.map((e) => {
+      const I = catIcon(e.category);
+      const sel = e.id === selected.id;
+      const linked = e.linked_match === ticket.title;
+      return /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "article",
+        {
+          className: `rounded-3xl p-5 transition ${sel ? "bg-primary/15 ring-1 ring-primary/40" : "glass"}`,
+          children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              onClick: () => setSelectedId(e.id),
+              className: "w-full text-left",
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-4", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-11 w-11 place-items-center rounded-2xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(I, { className: "h-5 w-5 text-primary-glow" }) }),
+                    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: catLabel(e.category) }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "mt-1 font-display text-lg font-semibold", children: e.title }),
+                      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-xs text-muted-foreground", children: e.subtitle })
+                    ] })
+                  ] }),
+                  linked && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "label-xs rounded-full bg-success/20 px-2 py-1 text-success", children: "Lié au billet" })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-4 text-sm text-muted-foreground", children: e.description }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-2 gap-2 text-xs", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: MapPin, label: e.venue }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    MetaBadge,
+                    {
+                      icon: CalendarDays,
+                      label: `${e.date} · ${e.time}`
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Ticket, label: e.price }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Users, label: e.partners.join(", ") })
+                ] })
+              ]
+            }
+          )
+        },
+        e.id
+      );
+    }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Programme sélectionné" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-xl font-semibold", children: selectedEvent.title }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4 space-y-2", children: selectedEvent.program.map((step) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "label-xs text-primary-glow", children: [
+        "Programme · ",
+        selected.title
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4 space-y-2", children: selected.program.map((s) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
         "div",
         {
           className: "flex items-center gap-3 rounded-2xl bg-white/5 px-3 py-3 text-sm",
           children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { className: "h-4 w-4 shrink-0 text-primary-glow" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: step })
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Clock, { className: "h-4 w-4 text-primary-glow" }),
+            s
           ]
         },
-        step
+        s
       )) })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
-        InfoCard,
+        IC,
         {
           icon: ShieldCheck,
           title: "Sécurité",
-          detail: `${selectedEvent.safety} - jauge ${selectedEvent.capacity}%`
+          detail: `${selected.safety} · jauge ${selected.capacity}%`
         }
       ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(IC, { icon: ShoppingBag, title: "Merch", detail: selected.merch }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(IC, { icon: Navigation, title: "Accès", detail: selected.route }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
-        InfoCard,
+        IC,
         {
-          icon: ShoppingBag,
-          title: "Merch",
-          detail: selectedEvent.merchOffer
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        InfoCard,
-        {
-          icon: Users,
-          title: "Partenaires",
-          detail: selectedEvent.partners.join(", ")
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        InfoCard,
-        {
-          icon: Navigation,
-          title: "Accès",
-          detail: selectedEvent.routeHint
+          icon: Star,
+          title: "Langues",
+          detail: selected.languages.join(", ")
         }
       )
     ] })
   ] });
 }
-function EventsMap({
-  events,
-  selectedEventId
-}) {
-  const points = events.slice(0, 6).map((event, index) => ({
-    event,
-    x: [72, 226, 80, 220, 150, 240][index] ?? 150,
-    y: [62, 72, 154, 154, 42, 116][index] ?? 110
-  }));
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative mt-4 h-56 overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-[#0a1a33] to-[#102a55]", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { viewBox: "0 0 300 220", className: "absolute inset-0 h-full w-full", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "150", cy: "110", r: "46", fill: "#1A6FE8", opacity: "0.35" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("circle", { cx: "150", cy: "110", r: "24", fill: "#1A6FE8" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "text",
-        {
-          x: "150",
-          y: "115",
-          textAnchor: "middle",
-          fill: "white",
-          fontSize: "10",
-          fontWeight: "700",
-          children: "STADE"
-        }
-      ),
-      points.map(({ event, x, y }) => {
-        const selected = event.id === selectedEventId;
-        return /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "circle",
-            {
-              cx: x,
-              cy: y,
-              r: selected ? 22 : 15,
-              fill: "#73B9FF",
-              opacity: selected ? 0.2 : 0.12,
-              children: selected && /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "animate",
-                {
-                  attributeName: "r",
-                  values: "22;28;22",
-                  dur: "2s",
-                  repeatCount: "indefinite"
-                }
-              )
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "circle",
-            {
-              cx: x,
-              cy: y,
-              r: "7",
-              fill: selected ? "#00C48C" : "#73B9FF"
-            }
-          )
-        ] }, event.id);
-      })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass absolute bottom-3 left-3 rounded-lg px-2 py-1 text-xs", children: "Stade" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute bottom-3 right-3 rounded-lg bg-success/20 px-2 py-1 text-xs text-success", children: "Évent sélectionné" })
-  ] });
-}
-function EventCard({
-  event,
-  selected,
-  linked,
-  onSelect
-}) {
-  const Icon = categoryIcon$1(event.category);
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(
-    "article",
-    {
-      className: `rounded-3xl p-5 transition ${selected ? "bg-primary/15 ring-1 ring-primary/40" : "glass"}`,
-      children: /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", onClick: onSelect, className: "w-full text-left", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex gap-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { className: "h-5 w-5 text-primary-glow" }) }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: categoryLabel$2(event.category) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "mt-1 font-display text-lg font-semibold", children: event.title }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-xs text-muted-foreground", children: event.subtitle })
-            ] })
-          ] }),
-          linked && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "label-xs rounded-full bg-success/20 px-2 py-1 text-success", children: "Lié au billet" })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-4 text-sm text-muted-foreground", children: event.description }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-2 gap-2 text-xs", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: MapPin, label: event.venue }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            MetaBadge,
-            {
-              icon: CalendarDays,
-              label: `${event.date} - ${event.time}`
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Ticket, label: event.price }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(MetaBadge, { icon: Flame, label: `Capacité ${event.capacity}%` })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4 h-1.5 overflow-hidden rounded-full bg-white/5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "div",
-          {
-            className: "h-full rounded-full bg-gradient-to-r from-success via-primary-glow to-destructive",
-            style: { width: `${event.capacity}%` }
-          }
-        ) })
-      ] })
-    }
-  );
-}
-function InfoCard({
-  icon: Icon,
+function IC({
+  icon: I,
   title,
   detail
 }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass rounded-2xl p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-3", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Icon, { className: "h-5 w-5 text-primary-glow" }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-10 w-10 place-items-center rounded-xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(I, { className: "h-5 w-5 text-primary-glow" }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold", children: title }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-xs text-muted-foreground", children: detail })
     ] })
@@ -3113,18 +4347,222 @@ function CommunauteView() {
     subTab === "groupes" ? /* @__PURE__ */ jsxRuntimeExports.jsx(GroupesSection, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(EvenementsSection, {})
   ] });
 }
-const CART_STORAGE_KEY = "fanpass:merchCart:v1";
-const ORDERS_STORAGE_KEY = "fanpass:merchOrders:v1";
-const PRODUCTS = [
+const PICKUPS$1 = {
+  stadium: "Stade",
+  fan_zone: "Fan zone",
+  event: "Event"
+};
+function fmt$1(n) {
+  return `${n.toLocaleString("fr-MA")} MAD`;
+}
+function PanierView({
+  items,
+  pickup,
+  onChangePickup,
+  onChangeQty,
+  onBack,
+  onOrderComplete
+}) {
+  const { token } = useAuth();
+  const [order, setOrder] = reactExports.useState(null);
+  const [loading, setLoading] = reactExports.useState(false);
+  const [error, setError] = reactExports.useState("");
+  const count = items.reduce((s, i) => s + i.qty, 0);
+  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  async function confirmOrder() {
+    if (items.length === 0) return;
+    setError("");
+    setLoading(true);
+    try {
+      const payload = items.map((c) => ({
+        id: c.id,
+        qty: c.qty
+      }));
+      const r = await fanpassFetch("/merch/order", token, {
+        method: "POST",
+        body: JSON.stringify({ items: payload, pickup })
+      });
+      if (!r.ok) {
+        const data = await r.json().catch(() => null);
+        throw new Error(data?.detail ?? "Commande impossible");
+      }
+      setOrder(await r.json());
+      onOrderComplete?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur reseau");
+    } finally {
+      setLoading(false);
+    }
+  }
+  if (order) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "sticky top-0 z-40 glass border-b border-white/5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mx-auto max-w-md px-5 py-3 flex items-center justify-between", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: onBack,
+            className: "text-sm text-muted-foreground hover:text-foreground",
+            children: "← Boutique"
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold", children: "Confirmation" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-16" })
+      ] }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "flex-1 mx-auto w-full max-w-md px-5 pt-10 pb-8 flex flex-col items-center justify-center text-center space-y-6", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-20 w-20 rounded-full bg-success/15 grid place-items-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "h-10 w-10 text-success" }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-2xl font-semibold", children: "Commande confirmée !" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-sm text-muted-foreground", children: order.order_id })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-6 w-full text-center space-y-3", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-center gap-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(QrCode, { className: "h-8 w-8 text-primary-glow" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-mono text-lg font-semibold", children: order.qr_code })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm text-muted-foreground", children: [
+            "Retrait : ",
+            order.pickup_location
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm text-primary-glow font-semibold", children: [
+            "Disponible à partir de ",
+            order.available_at
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: onBack,
+            className: "w-full rounded-2xl bg-primary py-4 text-sm font-medium text-primary-foreground glow-primary",
+            children: "Retour à la boutique"
+          }
+        )
+      ] })
+    ] });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "sticky top-0 z-40 glass border-b border-white/5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mx-auto max-w-md px-5 py-3 flex items-center justify-between", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "button",
+        {
+          onClick: onBack,
+          className: "inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "h-4 w-4" }),
+            " Boutique"
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm font-semibold", children: "Mon panier" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-xs text-muted-foreground", children: [
+        count,
+        " article",
+        count > 1 ? "s" : ""
+      ] })
+    ] }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "flex-1 mx-auto w-full max-w-md px-5 pt-6 pb-8 space-y-5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow mb-3", children: "Mode de retrait" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-3 gap-1 rounded-2xl bg-white/5 p-1", children: Object.entries(PICKUPS$1).map(([k, v]) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: () => onChangePickup(k),
+            className: `rounded-xl px-2 py-3 text-xs font-semibold transition ${pickup === k ? "bg-primary text-primary-foreground shadow-elevated" : "text-muted-foreground hover:text-foreground"}`,
+            children: v
+          },
+          k
+        )) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 flex items-center gap-2 text-xs text-primary-glow", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Truck, { className: "h-4 w-4" }),
+          " Retrait proche de votre gate — Stand Merch C2"
+        ] })
+      ] }),
+      items.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-8 text-center", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ShoppingCart, { className: "h-10 w-10 text-muted-foreground mx-auto mb-3" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-muted-foreground", children: "Votre panier est vide" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: onBack,
+            className: "mt-4 rounded-2xl bg-white/5 px-6 py-3 text-sm",
+            children: "Parcourir la boutique"
+          }
+        )
+      ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: items.map((item) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass rounded-3xl p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            className: "h-16 w-16 rounded-2xl shrink-0",
+            style: {
+              background: `linear-gradient(135deg, ${item.visual.from}, ${item.visual.to})`
+            },
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full w-full grid place-items-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs font-bold text-white", children: item.visual.label }) })
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0 flex-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-sm font-semibold", children: item.name }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-1 text-xs text-muted-foreground", children: [
+            fmt$1(item.price),
+            " / unité"
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-2 flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => onChangeQty(item.id, item.qty - 1),
+                className: "grid h-8 w-8 place-items-center rounded-full bg-white/10",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(Minus, { className: "h-3.5 w-3.5" })
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "w-6 text-center text-sm font-semibold", children: item.qty }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => onChangeQty(item.id, item.qty + 1),
+                className: "grid h-8 w-8 place-items-center rounded-full bg-white/10",
+                children: /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { className: "h-3.5 w-3.5" })
+              }
+            )
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-right", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-lg font-semibold text-primary-glow", children: fmt$1(item.price * item.qty) }) })
+      ] }) }, item.id)) }),
+      items.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+        error && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-2xl bg-destructive/15 px-4 py-3 text-sm text-destructive", children: error }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between text-sm", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-muted-foreground", children: "Sous-total" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: fmt$1(subtotal) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-2 flex items-center justify-between text-sm", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-muted-foreground", children: "Retrait" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-success", children: "Gratuit" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 pt-3 border-t border-white/5 flex items-center justify-between", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-semibold", children: "Total" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-display text-xl font-semibold text-primary-glow", children: fmt$1(subtotal) })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            onClick: confirmOrder,
+            disabled: loading,
+            className: "w-full rounded-2xl bg-primary py-4 text-sm font-medium text-primary-foreground glow-primary transition hover:scale-[1.01] disabled:opacity-50",
+            children: loading ? "Confirmation..." : `Commander · ${fmt$1(subtotal)}`
+          }
+        )
+      ] })
+    ] })
+  ] });
+}
+const FALLBACK_PRODUCTS = [
   {
-    id: "maroc-home-2030",
+    id: "maroc-home",
     name: "Maillot Maroc 2030 Home",
     category: "official",
-    line: "Produit officiel Coupe du Monde",
     team: "Maroc",
-    matchTag: "Maroc vs Espagne",
+    match_tag: "Maroc vs Espagne",
     price: 790,
-    currency: "MAD",
     rating: 4.9,
     stock: 84,
     badge: "Officiel",
@@ -3133,18 +4571,16 @@ const PRODUCTS = [
     visual: { label: "MAR", from: "#C8102E", to: "#006233" }
   },
   {
-    id: "atlas-scarf-opening",
+    id: "scarf-opening",
     name: "Écharpe Maroc vs Espagne",
     category: "souvenir",
-    line: "Souvenir match-day",
     team: "Maroc",
-    matchTag: "Maroc vs Espagne",
+    match_tag: "Maroc vs Espagne",
     price: 220,
-    currency: "MAD",
     rating: 4.8,
     stock: 62,
     badge: "Match-day",
-    promo: "Retrait express avant coup d'envoi",
+    promo: "Retrait express",
     pickup: ["stadium", "fan_zone"],
     visual: { label: "M/E", from: "#D92332", to: "#0D1F3C" }
   },
@@ -3152,267 +4588,185 @@ const PRODUCTS = [
     id: "corniche-pack",
     name: "Pack Casablanca Corniche",
     category: "sponsor",
-    line: "Offre partenaire fan zone",
     team: "FanPass",
-    eventTag: "Casablanca Corniche",
+    event_tag: "Casablanca Corniche",
     price: 360,
-    currency: "MAD",
     rating: 4.7,
     stock: 51,
     badge: "Sponsor",
-    promo: "Boisson + badge + tote bag",
+    promo: "Boisson + badge + tote",
     pickup: ["fan_zone"],
     visual: { label: "CFC", from: "#1A6FE8", to: "#00C48C" }
   },
   {
-    id: "atlas-cap-gate-c",
+    id: "cap-gate-c",
     name: "Casquette Atlas Gate C",
     category: "official",
-    line: "Offre selon votre gate",
     team: "Maroc",
-    matchTag: "Maroc vs Espagne",
+    match_tag: "Maroc vs Espagne",
     price: 280,
-    currency: "MAD",
     rating: 4.6,
     stock: 39,
     badge: "Gate C",
-    promo: "Disponible au point retrait Nord",
+    promo: "Retrait Nord",
     pickup: ["stadium"],
     visual: { label: "GC", from: "#0D1F3C", to: "#1A6FE8" }
   },
   {
-    id: "wydad-heritage-2031",
+    id: "wydad-heritage",
     name: "Wydad Heritage 2031",
-    category: "post2030",
-    line: "Club marocain après 2030",
+    category: "club",
     team: "Wydad AC",
     price: 640,
-    currency: "MAD",
     rating: 4.8,
     stock: 44,
     badge: "Club",
-    promo: "Précommande club partenaire",
+    promo: "Précommande club",
     pickup: ["event", "stadium"],
     visual: { label: "WAC", from: "#B80F1C", to: "#F6F6F6" }
   },
   {
-    id: "raja-streetwear-drop",
+    id: "raja-drop",
     name: "Raja Streetwear Drop",
     category: "club",
-    line: "Boutique club partenaire",
     team: "Raja CA",
     price: 590,
-    currency: "MAD",
     rating: 4.7,
     stock: 37,
     badge: "Club",
-    promo: "Drop limité fan experience",
+    promo: "Drop limité",
     pickup: ["event", "fan_zone"],
     visual: { label: "RCA", from: "#00843D", to: "#111827" }
   },
   {
-    id: "babouche-supporter",
-    name: "Babouche Supporter Edition",
+    id: "babouche",
+    name: "Babouche Supporter",
     category: "local",
-    line: "Produit local partenaire",
     team: "Artisans Maroc",
     price: 310,
-    currency: "MAD",
     rating: 4.9,
     stock: 29,
     badge: "Local",
-    promo: "Fait main, retrait event",
+    promo: "Fait main",
     pickup: ["event", "fan_zone"],
     visual: { label: "ART", from: "#C17C2C", to: "#006D77" }
   },
   {
-    id: "ceramic-mug-2030",
-    name: "Mug Céramique Morocco 2030",
+    id: "ceramic-mug",
+    name: "Mug Céramique 2030",
     category: "local",
-    line: "Souvenir local partenaire",
     team: "Safialab",
     price: 180,
-    currency: "MAD",
     rating: 4.5,
     stock: 73,
     badge: "Souvenir",
-    promo: "Offre duo à la fan zone",
+    promo: "Offre duo",
     pickup: ["fan_zone", "event"],
     visual: { label: "2030", from: "#FFFFFF", to: "#1A6FE8" }
-  },
-  {
-    id: "hydration-sponsor-pack",
-    name: "Sponsor Hydration Pack",
-    category: "sponsor",
-    line: "Activation sponsor",
-    team: "Partenaire officiel",
-    matchTag: "Maroc vs Espagne",
-    price: 140,
-    currency: "MAD",
-    rating: 4.4,
-    stock: 90,
-    badge: "Promo",
-    promo: "Recommandé si forte densité",
-    pickup: ["stadium", "fan_zone"],
-    visual: { label: "H2O", from: "#73B9FF", to: "#00C48C" }
-  },
-  {
-    id: "skills-mini-ball",
-    name: "Mini Ballon Atlas Skills",
-    category: "sponsor",
-    line: "Activation sponsor Skills Challenge",
-    team: "CAF Partner",
-    eventTag: "Skills Challenge Atlas",
-    price: 260,
-    currency: "MAD",
-    rating: 4.6,
-    stock: 48,
-    badge: "Event",
-    promo: "Lot partenaire + QR event",
-    pickup: ["event"],
-    visual: { label: "BALL", from: "#F7B801", to: "#1A6FE8" }
   }
 ];
-const FILTER_ITEMS$1 = [
+const FILTERS = [
   { id: "all", label: "Tous" },
-  { id: "match", label: "Match" },
+  { id: "match", label: "Mon match" },
   { id: "official", label: "Officiel" },
   { id: "club", label: "Clubs" },
   { id: "local", label: "Local" },
   { id: "sponsor", label: "Sponsor" }
 ];
-function formatMoney(amount, currency) {
-  return `${amount.toLocaleString("fr-MA")} ${currency}`;
-}
-function categoryLabel$1(category) {
-  if (category === "official") return "Officiel";
-  if (category === "club") return "Club";
-  if (category === "post2030") return "Club après 2030";
-  if (category === "local") return "Local partenaire";
-  if (category === "sponsor") return "Sponsor";
-  return "Souvenir";
-}
-function pickupLabel(type) {
-  if (type === "stadium") return "Stade";
-  if (type === "fan_zone") return "Fan zone";
-  return "Event";
-}
-function getPickupLocation(type, ticket) {
-  if (type === "stadium") return `${ticket.gate} - ${ticket.venue}`;
-  if (type === "fan_zone") {
-    if (ticket.city === "Rabat") return "Rabat Ocean Stage";
-    if (ticket.city === "Marrakech") return "Marrakech Medina Live";
-    return "Casablanca Corniche";
-  }
-  return "FanPass Arena Pop-up";
-}
-function createOrderId() {
-  return `merch-${Date.now()}-${Math.floor(Math.random() * 1e3)}`;
-}
-function readCart() {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item) => typeof item?.productId === "string" && typeof item?.quantity === "number" && item.quantity > 0
-    ).map((item) => ({
-      productId: item.productId,
-      quantity: Math.min(9, Math.floor(item.quantity))
-    }));
-  } catch {
-    return [];
-  }
-}
-function readOrders() {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(ORDERS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((order) => typeof order?.id === "string");
-  } catch {
-    return [];
-  }
+const PICKUPS = {
+  stadium: "Stade",
+  fan_zone: "Fan zone",
+  event: "Event"
+};
+function fmt(n) {
+  return `${n.toLocaleString("fr-MA")} MAD`;
 }
 function MerchSection({ onBack }) {
-  const activeTicket = useActiveTicket();
+  const { token } = useAuth();
+  const ticket = useActiveTicket();
+  const [products, setProducts] = reactExports.useState(FALLBACK_PRODUCTS);
   const [filter, setFilter] = reactExports.useState("all");
-  const [pickupType, setPickupType] = reactExports.useState("stadium");
   const [cart, setCart] = reactExports.useState([]);
-  const [orders, setOrders] = reactExports.useState([]);
-  const [lastOrder, setLastOrder] = reactExports.useState(null);
-  const [hydrated, setHydrated] = reactExports.useState(false);
+  const [pickup, setPickup] = reactExports.useState("stadium");
+  const [showCart, setShowCart] = reactExports.useState(false);
+  const [loading, setLoading] = reactExports.useState(true);
   reactExports.useEffect(() => {
-    setCart(readCart());
-    setOrders(readOrders());
-    setHydrated(true);
-  }, []);
-  reactExports.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return;
-    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
-    window.localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
-  }, [cart, hydrated, orders]);
-  const visibleProducts = reactExports.useMemo(() => {
-    if (filter === "all") return PRODUCTS;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    const t = setTimeout(() => setLoading(false), 4e3);
+    (async () => {
+      try {
+        const r = await fanpassFetch(`/merch?filter=${filter}`, token, {
+          signal: AbortSignal.timeout(4e3)
+        });
+        if (r.ok) {
+          const d = await r.json();
+          setProducts(d.products);
+        }
+      } catch {
+      } finally {
+        clearTimeout(t);
+        setLoading(false);
+      }
+    })();
+    return () => clearTimeout(t);
+  }, [token, filter]);
+  const filtered = reactExports.useMemo(() => {
+    if (filter === "all") return products;
     if (filter === "match")
-      return PRODUCTS.filter(
-        (p) => p.matchTag === activeTicket.title || p.team === "Maroc" || p.badge === activeTicket.gate
+      return products.filter(
+        (p) => p.match_tag === ticket.title || p.team === "Maroc"
       );
-    if (filter === "club")
-      return PRODUCTS.filter(
-        (p) => p.category === "club" || p.category === "post2030"
-      );
-    return PRODUCTS.filter((p) => p.category === filter);
-  }, [activeTicket.gate, activeTicket.title, filter]);
-  const cartLines = cart.map((item) => {
-    const product = PRODUCTS.find((p) => p.id === item.productId);
-    return product ? { item, product } : null;
-  }).filter(
-    (line) => Boolean(line)
-  );
-  const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal = cartLines.reduce(
-    (sum, line) => sum + line.product.price * line.item.quantity,
-    0
-  );
-  const matchOffers = PRODUCTS.filter((p) => p.matchTag === activeTicket.title);
-  const pickupLocation = getPickupLocation(pickupType, activeTicket);
-  function addToCart(product) {
-    if (!product.pickup.includes(pickupType)) setPickupType(product.pickup[0]);
-    setCart((current) => {
-      const existing = current.find((i) => i.productId === product.id);
-      if (existing)
-        return current.map(
-          (i) => i.productId === product.id ? { ...i, quantity: Math.min(9, i.quantity + 1) } : i
+    return products.filter((p) => p.category === filter);
+  }, [products, filter, ticket]);
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  function addToCart(p) {
+    if (!p.pickup.includes(pickup)) setPickup(p.pickup[0]);
+    setCart((prev) => {
+      const ex = prev.find((x) => x.id === p.id);
+      if (ex)
+        return prev.map(
+          (x) => x.id === p.id ? { ...x, qty: Math.min(9, x.qty + 1) } : x
         );
-      return [{ productId: product.id, quantity: 1 }, ...current];
+      return [
+        ...prev,
+        { id: p.id, name: p.name, price: p.price, qty: 1, visual: p.visual }
+      ];
     });
   }
-  function changeQuantity(productId, qty) {
+  function changeQty(id, q) {
     setCart(
-      (current) => current.map(
-        (i) => i.productId === productId ? { ...i, quantity: Math.max(0, Math.min(9, qty)) } : i
-      ).filter((i) => i.quantity > 0)
+      (prev) => prev.map(
+        (x) => x.id === id ? { ...x, qty: Math.max(0, Math.min(9, q)) } : x
+      ).filter((x) => x.qty > 0)
     );
   }
-  function confirmPreorder() {
-    if (cart.length === 0) return;
-    const order = {
-      id: createOrderId(),
-      items: cart,
-      total: subtotal,
-      pickupType,
-      pickupLocation,
-      createdAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    setOrders((c) => [order, ...c]);
-    setLastOrder(order);
-    setCart([]);
-  }
+  if (showCart)
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(
+      PanierView,
+      {
+        items: cart,
+        pickup,
+        onChangePickup: setPickup,
+        onChangeQty: changeQty,
+        onBack: () => setShowCart(false),
+        onOrderComplete: () => setCart([])
+      }
+    );
+  if (loading)
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-4", children: [...Array(3)].map((_, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "div",
+      {
+        className: "glass rounded-3xl p-6 animate-pulse space-y-3",
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-4 w-2/3 bg-white/5 rounded-lg" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-3 w-full bg-white/5 rounded-lg" })
+        ]
+      },
+      i
+    )) });
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-5", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -3429,193 +4783,94 @@ function MerchSection({ onBack }) {
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "glass rounded-3xl p-5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start gap-3", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(BadgePercent, { className: "h-5 w-5 text-primary-glow" }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0 flex-1", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Offre selon billet" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-lg font-semibold", children: activeTicket.title }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-11 w-11 place-items-center rounded-2xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(BadgePercent, { className: "h-5 w-5 text-primary-glow" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Recommandé pour vous" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 font-display text-lg font-semibold", children: ticket.title }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-1 text-xs text-muted-foreground", children: [
-          matchOffers.length,
-          " offres actives - retrait ",
-          activeTicket.gate,
-          " ",
-          "ou fan zone"
+          "Produits liés à votre match · ",
+          ticket.gate
         ] })
       ] })
     ] }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-5", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "label-xs text-primary-glow", children: "Panier & précommande" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-1 font-display text-xl font-semibold", children: [
-            cartCount,
-            " article",
-            cartCount > 1 ? "s" : ""
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-1 text-xs text-muted-foreground", children: [
-            "Retrait: ",
-            pickupLocation
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ShoppingCart, { className: "h-5 w-5 text-primary-glow" }) })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4 grid grid-cols-3 gap-1 rounded-2xl bg-white/5 p-1", children: ["stadium", "fan_zone", "event"].map((pickup) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          type: "button",
-          onClick: () => setPickupType(pickup),
-          className: `rounded-xl px-2 py-2 text-xs font-semibold transition ${pickupType === pickup ? "bg-primary text-primary-foreground shadow-elevated" : "text-muted-foreground hover:text-foreground"}`,
-          children: pickupLabel(pickup)
-        },
-        pickup
-      )) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4 space-y-2", children: cartLines.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-2xl bg-white/5 p-4 text-sm text-muted-foreground", children: "Ajoutez des produits pour simuler une précommande." }) : cartLines.map(({ item, product }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "div",
-        {
-          className: "flex items-center gap-3 rounded-2xl bg-white/5 p-3",
-          children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "div",
-              {
-                className: "h-12 w-12 shrink-0 rounded-2xl",
-                style: {
-                  background: `linear-gradient(135deg, ${product.visual.from}, ${product.visual.to})`
-                }
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0 flex-1", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate text-sm font-semibold", children: product.name }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-1 text-xs text-muted-foreground", children: formatMoney(
-                product.price * item.quantity,
-                product.currency
-              ) })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: () => changeQuantity(product.id, item.quantity - 1),
-                  className: "grid h-8 w-8 place-items-center rounded-full bg-white/10",
-                  children: /* @__PURE__ */ jsxRuntimeExports.jsx(Minus, { className: "h-3.5 w-3.5" })
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-6 text-center text-sm font-semibold", children: item.quantity }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "button",
-                {
-                  onClick: () => changeQuantity(product.id, item.quantity + 1),
-                  className: "grid h-8 w-8 place-items-center rounded-full bg-white/10",
-                  children: /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { className: "h-3.5 w-3.5" })
-                }
-              )
-            ] })
-          ]
-        },
-        product.id
-      )) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 rounded-2xl bg-primary/10 p-4", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between text-sm", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-muted-foreground", children: "Total" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-display text-lg font-semibold", children: formatMoney(subtotal, "MAD") })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 flex items-center gap-2 text-xs text-primary-glow", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Truck, { className: "h-4 w-4" }),
-          " Retrait au stade, fan zone ou event."
-        ] })
-      ] }),
-      lastOrder && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 rounded-2xl bg-success/15 p-4 text-sm text-success", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 font-semibold", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Check, { className: "h-4 w-4" }),
-          " Précommande confirmée"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-1 text-xs", children: [
-          lastOrder.id,
-          " - ",
-          formatMoney(lastOrder.total, "MAD")
-        ] })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        "button",
-        {
-          type: "button",
-          onClick: confirmPreorder,
-          disabled: cartLines.length === 0,
-          className: "mt-4 w-full rounded-2xl bg-primary py-3 text-sm font-medium text-primary-foreground glow-primary disabled:cursor-not-allowed disabled:opacity-45",
-          children: "Confirmer précommande"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(FilterBar, { items: FILTER_ITEMS$1, activeId: filter, onChange: setFilter }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: visibleProducts.map((product) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-      "article",
+    cartCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      "button",
       {
-        className: "glass rounded-3xl p-4 transition hover:bg-white/5",
+        onClick: () => setShowCart(true),
+        className: "w-full glass rounded-3xl p-4 flex items-center justify-between gap-3 hover:bg-white/5 transition",
         children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-[92px_1fr] gap-4", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-10 w-10 place-items-center rounded-xl bg-primary/15", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ShoppingCart, { className: "h-5 w-5 text-primary-glow" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm font-semibold", children: [
+                cartCount,
+                " article",
+                cartCount > 1 ? "s" : ""
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-xs text-muted-foreground", children: fmt(cart.reduce((s, i) => s + i.price * i.qty, 0)) })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "label-xs text-primary-glow", children: "Voir le panier →" })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(FilterBar, { items: FILTERS, activeId: filter, onChange: setFilter }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "space-y-3", children: filtered.map((p) => /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: "glass rounded-3xl p-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-[80px_1fr] gap-4", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "div",
+          {
+            className: "h-20 rounded-2xl shrink-0 relative overflow-hidden",
+            style: {
+              background: `linear-gradient(135deg, ${p.visual.from}, ${p.visual.to})`
+            },
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-0 grid place-items-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-xl bg-black/20 px-2 py-1 text-xs font-bold text-white", children: p.visual.label }) })
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-start justify-between gap-2", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "label-xs text-primary-glow", children: p.badge }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "mt-1 font-display text-base font-semibold leading-tight", children: p.name })
+          ] }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-2 flex items-center justify-between", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-lg font-semibold text-primary-glow", children: fmt(p.price) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs text-muted-foreground", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Star, { className: "h-3 w-3 fill-primary-glow text-primary-glow" }),
+                p.rating,
+                " · ",
+                p.team
+              ] })
+            ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs(
-              "div",
+              "button",
               {
-                className: "relative h-24 shrink-0 overflow-hidden rounded-2xl",
-                style: {
-                  background: `linear-gradient(135deg, ${product.visual.from}, ${product.visual.to})`
-                },
+                onClick: () => addToCart(p),
+                className: "rounded-2xl bg-primary px-3 py-2 text-xs font-medium text-primary-foreground glow-primary",
                 children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-0 shimmer opacity-40" }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-0 grid place-items-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-xl bg-black/20 px-2 py-1 text-center text-xs font-bold text-white", children: product.visual.label }) })
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { className: "h-4 w-4 inline mr-1" }),
+                  "Ajouter"
                 ]
               }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-start justify-between gap-3", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-w-0", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "label-xs truncate text-primary-glow", children: categoryLabel$1(product.category) }) }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "mt-1 font-display text-lg font-semibold leading-tight", children: product.name }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-xs text-muted-foreground", children: product.line })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-full bg-white/5 px-2 py-1 text-xs", children: product.badge })
-              ] }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 flex items-center justify-between gap-3", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-lg font-semibold text-primary-glow", children: formatMoney(product.price, product.currency) }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-1 flex items-center gap-1 text-xs text-muted-foreground", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(Star, { className: "h-3.5 w-3.5 fill-primary-glow text-primary-glow" }),
-                    product.rating.toFixed(1),
-                    " - ",
-                    product.team
-                  ] })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                  "button",
-                  {
-                    onClick: () => addToCart(product),
-                    className: "inline-flex items-center gap-2 rounded-2xl bg-primary px-3 py-3 text-xs font-medium text-primary-foreground glow-primary",
-                    children: [
-                      /* @__PURE__ */ jsxRuntimeExports.jsx(Plus, { className: "h-4 w-4" }),
-                      " Ajouter"
-                    ]
-                  }
-                )
-              ] })
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 rounded-2xl bg-white/5 p-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-xs font-medium", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(BadgePercent, { className: "h-4 w-4 text-primary-glow" }),
-              " ",
-              product.promo
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-2 flex flex-wrap gap-1", children: product.pickup.map((p) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "span",
-              {
-                className: "rounded-full bg-primary/10 px-2 py-1 text-[0.65rem] font-semibold text-primary-glow",
-                children: pickupLabel(p)
-              },
-              p
-            )) })
+            )
           ] })
-        ]
-      },
-      product.id
-    )) })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 rounded-2xl bg-white/5 p-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-xs font-medium", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(BadgePercent, { className: "h-4 w-4 text-primary-glow" }),
+          p.promo
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-2 flex flex-wrap gap-1", children: p.pickup.map((pk) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "span",
+          {
+            className: "rounded-full bg-primary/10 px-2 py-1 text-[0.65rem] font-semibold text-primary-glow",
+            children: PICKUPS[pk]
+          },
+          pk
+        )) })
+      ] })
+    ] }, p.id)) })
   ] });
 }
 const REQUESTS_STORAGE_KEY = "fanpass:safetyRequests:v1";
@@ -5295,7 +6550,36 @@ function AppShell() {
   const [tab, setTab] = reactExports.useState("billet");
   const [showProfile, setShowProfile] = reactExports.useState(false);
   const [authScreen, setAuthScreen] = reactExports.useState("login");
-  if (!token && !isLoading) {
+  const [mounted, setMounted] = reactExports.useState(false);
+  reactExports.useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted || isLoading) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen flex flex-col", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "sticky top-0 z-40 glass border-b border-white/5", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mx-auto max-w-md px-5 py-3 flex items-center justify-between", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-6 w-16 bg-white/5 rounded-lg animate-pulse" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-6 w-20 bg-white/5 rounded-lg animate-pulse" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-8 w-8 bg-white/5 rounded-full animate-pulse" })
+      ] }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "flex-1 mx-auto w-full max-w-md px-5 pb-28 pt-4 space-y-4", children: [...Array(4)].map((_, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-3xl p-6 space-y-3", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-4 w-2/3 bg-white/5 rounded-lg animate-pulse" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-3 w-full bg-white/5 rounded-lg animate-pulse" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-3 w-4/5 bg-white/5 rounded-lg animate-pulse" })
+      ] }, i)) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("nav", { className: "fixed bottom-0 inset-x-0 z-40 pb-4 pt-2 px-3", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mx-auto max-w-md glass rounded-2xl px-2 py-5 flex items-center justify-between shadow-elevated", children: [...Array(4)].map((_, i) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        "div",
+        {
+          className: "flex-1 flex flex-col items-center gap-1.5",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-5 w-5 bg-white/5 rounded-lg animate-pulse" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-3 w-8 bg-white/5 rounded-lg animate-pulse" })
+          ]
+        },
+        i
+      )) }) })
+    ] });
+  }
+  if (!token) {
     if (authScreen === "register") {
       return /* @__PURE__ */ jsxRuntimeExports.jsx(
         RegisterView,
@@ -5313,9 +6597,6 @@ function AppShell() {
         onSwitchToRegister: () => setAuthScreen("register")
       }
     );
-  }
-  if (isLoading) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "min-h-screen flex items-center justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" }) });
   }
   if (showProfile) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(ProfileView, { onClose: () => setShowProfile(false) });
@@ -5617,7 +6898,7 @@ function AppPreview() {
         /* @__PURE__ */ jsxRuntimeExports.jsx("br", {}),
         "digne du futur du stade."
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-5 text-muted-foreground max-w-md", children: "Dark-mode dominant, micro-interactions fluides, navigation pensée pour le mobile. Testez l'app complète — sans inscription." }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-5 text-muted-foreground max-w-md", children: "Dark-mode dominant, micro-interactions fluides, navigation pensée pour le mobile. Creez votre compte fan pour tester l'app complete." }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs(
         Link,
         {

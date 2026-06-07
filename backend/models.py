@@ -34,6 +34,12 @@ class Fan(Base):
     document_type = Column(String(30), nullable=True)
     document_number = Column(String(100), nullable=True)
     document_verified_at = Column(DateTime, nullable=True)
+    first_name_locked = Column(Boolean, default=False)
+    last_name_locked = Column(Boolean, default=False)
+    nationality_locked = Column(Boolean, default=False)
+    document_number_locked = Column(Boolean, default=False)
+    date_of_birth = Column(String, nullable=True)
+    mrz_raw = Column(Text, nullable=True)
     photo_url = Column(Text, nullable=True)
     accessibility_needs = Column(String(30), nullable=True)
     fan_id_expires_at = Column(DateTime, nullable=True)
@@ -124,7 +130,10 @@ class Event(Base):
     is_official = Column(Boolean, default=False)
 
     __table_args__ = (
-        CheckConstraint("category IN ('official', 'watch', 'sponsor', 'club', 'family')", name="ck_event_category"),
+        CheckConstraint(
+            "category IN ('official', 'watch', 'sponsor', 'club', 'family', 'fan_zone', 'watch_party', 'club_event', 'community')",
+            name="ck_event_category"
+        ),
         CheckConstraint("density IN ('Calme', 'Controle', 'Dense')", name="ck_event_density"),
         CheckConstraint("capacity_pct BETWEEN 0 AND 100", name="ck_event_capacity"),
     )

@@ -28,6 +28,7 @@ type CartItem = {
   qty: number;
   visual: { label: string; from: string; to: string };
 };
+type MerchFilter = "all" | "match" | "official" | "club" | "local" | "sponsor";
 
 const FALLBACK_PRODUCTS: Product[] = [
   {
@@ -140,7 +141,7 @@ const FALLBACK_PRODUCTS: Product[] = [
   },
 ];
 
-const FILTERS = [
+const FILTERS: { id: MerchFilter; label: string }[] = [
   { id: "all", label: "Tous" },
   { id: "match", label: "Mon match" },
   { id: "official", label: "Officiel" },
@@ -161,7 +162,7 @@ export function MerchSection({ onBack }: { onBack: () => void }) {
   const { token } = useAuth();
   const ticket = useActiveTicket();
   const [products, setProducts] = useState<Product[]>(FALLBACK_PRODUCTS);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<MerchFilter>("all");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [pickup, setPickup] = useState("stadium");
   const [showCart, setShowCart] = useState(false);
@@ -183,6 +184,7 @@ export function MerchSection({ onBack }: { onBack: () => void }) {
           setProducts(d.products);
         }
       } catch {
+        // Keep fallback products if the API is unavailable.
       } finally {
         clearTimeout(t);
         setLoading(false);
@@ -311,11 +313,7 @@ export function MerchSection({ onBack }: { onBack: () => void }) {
       )}
 
       {/* Catalog */}
-      <FilterBar
-        items={FILTERS.map((c) => ({ id: c.id as any, label: c.label }))}
-        activeId={filter as any}
-        onChange={(id: any) => setFilter(id)}
-      />
+      <FilterBar items={FILTERS} activeId={filter} onChange={setFilter} />
       <div className="space-y-3">
         {filtered.map((p) => (
           <article key={p.id} className="glass rounded-3xl p-4">

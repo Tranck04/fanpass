@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -10,7 +10,7 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -71,7 +71,9 @@ async function fetchOSRMRoute(
           c[0],
         ]);
     }
-  } catch {}
+  } catch {
+    // Route service is optional; the map will display markers without a route.
+  }
   return null;
 }
 
@@ -81,11 +83,14 @@ export function GateAwareMap({ plan, gateCode }: Props) {
   const [routeInfo, setRouteInfo] = useState("");
   const fetchingRef = useRef(false);
 
-  const dest: [number, number] = [plan.coordinates.lat, plan.coordinates.lon];
-  const dropoff: [number, number] = [
-    plan.dropoff_coords.lat,
-    plan.dropoff_coords.lon,
-  ];
+  const dest = useMemo<[number, number]>(
+    () => [plan.coordinates.lat, plan.coordinates.lon],
+    [plan.coordinates.lat, plan.coordinates.lon],
+  );
+  const dropoff = useMemo<[number, number]>(
+    () => [plan.dropoff_coords.lat, plan.dropoff_coords.lon],
+    [plan.dropoff_coords.lat, plan.dropoff_coords.lon],
+  );
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -95,7 +100,7 @@ export function GateAwareMap({ plan, gateCode }: Props) {
         { enableHighAccuracy: true, timeout: 8000 },
       );
     } else setUserPos([dropoff[0] + 0.02, dropoff[1] - 0.02]);
-  }, [plan]);
+  }, [dropoff]);
 
   // Fetch route once — no flashing, no straight-line fallback
   useEffect(() => {
@@ -130,7 +135,7 @@ export function GateAwareMap({ plan, gateCode }: Props) {
       cancelled = true;
       fetchingRef.current = false;
     };
-  }, [userPos]);
+  }, [dest, dropoff, userPos]);
 
   const center: [number, number] = userPos ?? dropoff;
   const bounds = userPos

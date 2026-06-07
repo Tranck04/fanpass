@@ -5,7 +5,6 @@ Mapbox (carte) + OpenRouteService (itinéraires) avec zones évitées.
 
 import json
 import os
-import httpx
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -251,82 +250,3 @@ def recalculate_route(body: dict, fan: Fan = Depends(get_current_fan)):
     }
 
 
-# ─── OpenRouteService Routing ───
-
-ORS_API_KEY = os.getenv("ORS_API_KEY", "5b3ce3597851110001cf6248")
-ORS_BASE = "https://api.openrouteservice.org/v2"
-
-# Polygon d'exclusion pour les routes fermées (Casablanca - Grand Stade)
-BLOCKED_ZONES = {
-    "gate-c": {
-        "type": "Polygon",
-        "coordinates": [[
-            [-7.6720, 33.5770], [-7.6660, 33.5770],
-            [-7.6660, 33.5690], [-7.6720, 33.5690],
-            [-7.6720, 33.5770]
-        ]]
-    }
-}
-
-
-@router.get("/route")
-async def get_ors_route(
-    lat: float = Query(...),
-    lon: float = Query(...),
-    gate_id: str = Query("gate-c"),
-):
-    """Calculer un vrai itinéraire via OpenRouteService avec évitement des zones fermées."""
-    plan = get_plan_for_gate(gate_id)
-    dest = plan["coordinates"]
-    avoid_polygon = BLOCKED_ZONES.get(gate_id)
-
-    body = {
-        "coordinates": [[lon, lat], [dest["lon"], dest["lat"]]],
-        "format": "geojson",
-        "radiuses": [5000, -1],
-    }
-
-    if avoid_polygon:
-        body["options"] = {"avoid_polygons": {"type": "Polygon", "coordinates": avoid_polygon["coordinates"]}}
-
-    async with httpx.AsyncClient(timeout=15) as client:
-        try:
-            resp = await client.post(
-                f"{ORS_BASE}/directions/driving-car/geojson",
-                json=body,
-                headers={"Authorization": ORS_API_KEY, "Content-Type": "application/json"},
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                feature = data["features"][0] if data.get("features") else None
-                if feature:
-                    coords = feature["geometry"]["coordinates"]  # [[lon, lat], ...]
-                    # Convert to Leaflet format [[lat, lon], ...]
-                    route = [[c[1], c[0]] for c in coords]
-                    dist_km = round(feature["properties"]["segments"][0]["distance"] / 1000, 1)
-                    duration_min = round(feature["properties"]["segments"][0]["duration"] / 60, 1)
-                    return {
-                        "route": route,
-                        "distance_km": dist_km,
-                        "duration_min": duration_min,
-                        "avoided_zones": len(plan["closed_roads"]),
-                    }
-            # Fallback: straight line + mock points
-            mid_lat = (lat + dest["lat"]) / 2
-            mid_lon = (lon + dest["lon"]) / 2
-            return {
-                "route": [[lat, lon], [mid_lat + 0.002, mid_lon + 0.002], [dest["lat"], dest["lon"]]],
-                "distance_km": round(((lat - dest["lat"]) ** 2 + (lon - dest["lon"]) ** 2) ** 0.5 * 111, 1),
-                "duration_min": plan["estimated_time_min"],
-                "fallback": True,
-                "avoided_zones": len(plan["closed_roads"]),
-            }
-        except Exception:
-            return {
-                "route": [[lat, lon], [dest["lat"], dest["lon"]]],
-                "distance_km": 5.2,
-                "duration_min": plan["estimated_time_min"],
-                "fallback": True,
-                "avoided_zones": len(plan["closed_roads"]),
-            }
-    }

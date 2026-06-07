@@ -339,7 +339,7 @@ function AppPreview() {
           </h2>
           <p className="mt-5 text-muted-foreground max-w-md">
             Dark-mode dominant, micro-interactions fluides, navigation pensée
-            pour le mobile. Testez l'app complète — sans inscription.
+            pour le mobile. Creez votre compte fan pour tester l'app complete.
           </p>
           <Link
             to="/app"

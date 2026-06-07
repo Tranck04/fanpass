@@ -1,9 +1,9 @@
 """Merchandising — produits contextualisés, retrait gate/fan zone/event."""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Fan, Ticket
+from models import Fan, Order, Ticket
 from auth import get_current_fan
 
 router = APIRouter(prefix="/api/merch", tags=["merch"])
@@ -71,18 +71,64 @@ def list_products(
 
 
 @router.post("/order")
-def place_order(body: dict, fan: Fan = Depends(get_current_fan)):
-    """Simuler une commande avec QR de retrait."""
+def place_order(body: dict, fan: Fan = Depends(get_current_fan), db: Session = Depends(get_db)):
+    """Simuler une commande avec validation serveur."""
     items = body.get("items", [])
     pickup = body.get("pickup", "stadium")
-    total = sum(p["price"] * p["qty"] for p in items if isinstance(p, dict))
-    order_id = f"MCH-{fan.id[:6].upper()}-{len(items)}"
+    if pickup not in PICKUPS:
+        raise HTTPException(400, "Mode de retrait invalide")
+    if not isinstance(items, list) or not items:
+        raise HTTPException(400, "Panier vide")
+
+    products_by_id = {p["id"]: p for p in PRODUCTS}
+    total = 0
+    validated_items = []
+
+    for item in items:
+        if not isinstance(item, dict):
+            raise HTTPException(400, "Article invalide")
+        product = products_by_id.get(item.get("id"))
+        if not product:
+            raise HTTPException(400, "Produit introuvable")
+        try:
+            qty = int(item.get("qty", 0))
+        except (TypeError, ValueError):
+            raise HTTPException(400, "Quantite invalide")
+        if qty < 1 or qty > 9:
+            raise HTTPException(400, "Quantite invalide")
+        if qty > product["stock"]:
+            raise HTTPException(400, "Stock insuffisant")
+        if pickup not in product["pickup"]:
+            raise HTTPException(400, f"Retrait {PICKUPS[pickup]} indisponible pour {product['name']}")
+        total += product["price"] * qty
+        validated_items.append({
+            "id": product["id"],
+            "name": product["name"],
+            "qty": qty,
+            "unit_price": product["price"],
+        })
+
+    order = Order(
+        fan_id=fan.id,
+        status="confirmed",
+        total_mad=total,
+        pickup_type=pickup,
+        pickup_location="Stand Merch C2 - a 2 min de votre gate"
+        if pickup == "stadium"
+        else "Fan Zone - comptoir principal",
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+
+    order_id = f"MCH-{order.id[:8].upper()}"
     return {
         "order_id": order_id,
         "status": "confirmed",
         "total_mad": total,
+        "items": validated_items,
         "pickup": PICKUPS.get(pickup, "Stade"),
-        "pickup_location": "Stand Merch C2 — à 2 min de votre gate" if pickup == "stadium" else "Fan Zone — comptoir principal",
+        "pickup_location": order.pickup_location,
         "qr_code": f"QR-MCH-{order_id}",
         "available_at": "18:30",
     }

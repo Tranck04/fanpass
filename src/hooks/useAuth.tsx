@@ -17,6 +17,7 @@ type AuthState = {
 };
 
 type AuthContextType = AuthState & {
+  deleteAccount: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
@@ -215,12 +216,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [state.token],
   );
 
+  const deleteAccount = useCallback(async () => {
+    if (!state.token) return;
+    await apiFetch("/auth/me", { method: "DELETE" }, state.token);
+    setState({
+      token: null,
+      fanId: null,
+      avatarInitials: "YA",
+      fanIdStatus: "pending",
+      isLoading: false,
+    });
+  }, [state.token]);
+
   return (
     <AuthContext.Provider
       value={{
         ...state,
         login,
         register,
+        deleteAccount,
         logout,
         refreshProfile,
         updateProfile,

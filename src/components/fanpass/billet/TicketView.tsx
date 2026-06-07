@@ -519,6 +519,101 @@ function findEvent(eventId: string) {
   return ALL_EVENTS.find((event) => event.id === eventId);
 }
 
+function formatGate(gate?: string | null) {
+  if (!gate) return INITIAL_TICKET.gate;
+  if (gate.startsWith("Gate ")) return gate;
+  if (gate.startsWith("gate-"))
+    return `Gate ${gate.replace("gate-", "").toUpperCase()}`;
+  return gate;
+}
+
+function statusFromApi(status?: string): TicketStatus {
+  if (status === "scanned") return "used";
+  if (
+    status === "cancelled" ||
+    status === "expired" ||
+    status === "transferred"
+  ) {
+    return "locked";
+  }
+  return "valid";
+}
+
+function seedFromString(value: string) {
+  return Array.from(value).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+}
+
+function mapApiEvent(event: ApiTicketEvent): TicketEvent {
+  const fallback = findEvent(event.id) ?? MATCH_EVENTS[0];
+  const access = event.access ?? {};
+  return {
+    id: event.id,
+    type: event.type,
+    title: event.title,
+    subtitle: event.subtitle ?? fallback.subtitle,
+    city: event.city ?? fallback.city,
+    venue: event.venue ?? fallback.venue,
+    date: event.date ?? fallback.date,
+    time: event.time ?? fallback.time,
+    density: event.density ?? fallback.density,
+    description: event.description ?? fallback.description,
+    access: {
+      gate: access.gate ?? fallback.access.gate,
+      accessZone: access.accessZone ?? fallback.access.accessZone,
+      tribune: access.tribune ?? fallback.access.tribune,
+      seatHint: access.seatHint ?? fallback.access.seatHint,
+      accessControl: access.accessControl ?? fallback.access.accessControl,
+      rules: access.rules ?? fallback.access.rules,
+    },
+    tiers:
+      event.tiers?.map((tier) => ({
+        id: tier.id,
+        name: tier.name,
+        price: tier.price_mad ?? tier.price ?? 0,
+        currency: "MAD",
+        benefits: tier.benefits ?? [],
+      })) ?? fallback.tiers,
+  };
+}
+
+function mapApiTicket(ticket: ApiPurchasedTicket): PurchasedTicket {
+  const eventId = ticket.event_id ?? ticket.match_id ?? "api-ticket";
+  const gate = formatGate(ticket.gate ?? ticket.gate_id);
+  const seat =
+    ticket.seat_label ??
+    [ticket.seat_section, ticket.seat_row, ticket.seat_number]
+      .filter(Boolean)
+      .join(" - ") ??
+    INITIAL_TICKET.seat;
+  return {
+    ...INITIAL_TICKET,
+    id: ticket.id,
+    apiId: ticket.id,
+    eventId,
+    eventType: ticket.event_type ?? (ticket.event_id ? "event" : "match"),
+    title: ticket.title ?? INITIAL_TICKET.title,
+    subtitle: ticket.subtitle ?? INITIAL_TICKET.subtitle,
+    city: ticket.city ?? INITIAL_TICKET.city,
+    venue: ticket.venue ?? INITIAL_TICKET.venue,
+    date: ticket.date ?? INITIAL_TICKET.date,
+    time: ticket.time ?? INITIAL_TICKET.time,
+    tierName: ticket.tier_name ?? INITIAL_TICKET.tierName,
+    quantity: ticket.quantity ?? 1,
+    total: ticket.total_mad ?? ticket.price_mad ?? INITIAL_TICKET.total,
+    qrSeed: ticket.qr_seed ?? seedFromString(ticket.id),
+    purchasedAt: ticket.purchased_at ?? new Date().toISOString(),
+    status: statusFromApi(ticket.status),
+    gate,
+    accessZone: ticket.access_zone ?? INITIAL_TICKET.accessZone,
+    tribune: ticket.tribune ?? INITIAL_TICKET.tribune,
+    seat,
+    accessControl: ticket.access_control ?? INITIAL_TICKET.accessControl,
+    accessRules: ticket.access_rules ?? INITIAL_TICKET.accessRules,
+    securityCode: ticket.security_code ?? INITIAL_TICKET.securityCode,
+    qrRaw: ticket.qr_raw,
+  };
+}
+
 function normalizeStoredTicket(
   ticket: Partial<PurchasedTicket>,
 ): PurchasedTicket {
@@ -553,30 +648,70 @@ function readStoredTickets(): PurchasedTicket[] {
 }
 
 export function TicketView({ onNav }: { onNav?: (t: PrimaryTab) => void }) {
+  const { token } = useAuth();
   const [segment, setSegment] = useState<TicketSegment>("wallet");
   const [tickets, setTickets] = useState<PurchasedTicket[]>([INITIAL_TICKET]);
+  const [catalogEvents, setCatalogEvents] = useState<TicketEvent[]>(ALL_EVENTS);
   const [hydrated, setHydrated] = useState(false);
   const [activeTicketId, setActiveTicketId] = useState(INITIAL_TICKET.id);
   const [checkoutEvent, setCheckoutEvent] = useState<TicketEvent | null>(null);
   const [selectedTierId, setSelectedTierId] = useState<string>("");
   const [quantity, setQuantity] = useState(1);
   const [showImport, setShowImport] = useState(false);
+  const [showScan, setShowScan] = useState(false);
+  const [showAcceptTransfer, setShowAcceptTransfer] = useState(false);
+  const [transferTicket, setTransferTicket] = useState<PurchasedTicket | null>(
+    null,
+  );
 
-  if (showImport) {
-    return (
-      <ImportTicketView
-        onBack={() => setShowImport(false)}
-        onImported={() => setShowImport(false)}
-      />
-    );
-  }
+  const loadRemoteWallet = useCallback(async () => {
+    if (!token) return false;
+    try {
+      const response = await fanpassFetch("/tickets", token, {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      if (!Array.isArray(data) || data.length === 0) return false;
+      const apiTickets = data.map((ticket) => mapApiTicket(ticket));
+      setTickets(apiTickets);
+      setActiveTicketId(apiTickets[0]?.id ?? INITIAL_TICKET.id);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [token]);
 
   useEffect(() => {
     const storedTickets = readStoredTickets();
     setTickets(storedTickets);
     setActiveTicketId(storedTickets[0]?.id ?? INITIAL_TICKET.id);
     setHydrated(true);
-  }, []);
+    void loadRemoteWallet();
+  }, [loadRemoteWallet]);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fanpassFetch("/tickets/events", token, {
+          signal: AbortSignal.timeout(4000),
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setCatalogEvents(data.map((event) => mapApiEvent(event)));
+        }
+      } catch {
+        // Keep the local catalogue if the API is unavailable.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     if (!hydrated || typeof window === "undefined") return;
@@ -589,10 +724,10 @@ export function TicketView({ onNav }: { onNav?: (t: PrimaryTab) => void }) {
     INITIAL_TICKET;
   const visibleEvents =
     segment === "zones"
-      ? FAN_ZONE_EVENTS
+      ? catalogEvents.filter((event) => event.type === "fan_zone")
       : segment === "events"
-        ? FOOTBALL_EVENTS
-        : MATCH_EVENTS;
+        ? catalogEvents.filter((event) => event.type === "event")
+        : catalogEvents.filter((event) => event.type === "match");
   const selectedTier =
     checkoutEvent?.tiers.find((tier) => tier.id === selectedTierId) ??
     checkoutEvent?.tiers[0];
@@ -617,40 +752,100 @@ export function TicketView({ onNav }: { onNav?: (t: PrimaryTab) => void }) {
     setQuantity(1);
   }
 
-  function confirmCheckout() {
-    if (!checkoutEvent || !selectedTier) return;
-    const purchasedTicket: PurchasedTicket = {
-      id: createTicketId(checkoutEvent),
-      eventId: checkoutEvent.id,
-      eventType: checkoutEvent.type,
-      title: checkoutEvent.title,
-      subtitle: checkoutEvent.subtitle,
-      city: checkoutEvent.city,
-      venue: checkoutEvent.venue,
-      date: checkoutEvent.date,
-      time: checkoutEvent.time,
-      tierName: selectedTier.name,
-      quantity,
-      total,
-      currency: selectedTier.currency,
-      qrSeed: createQrSeed(checkoutEvent),
-      purchasedAt: new Date().toISOString(),
-      status: "valid",
-      gate: checkoutEvent.access.gate,
-      accessZone: checkoutEvent.access.accessZone,
-      tribune: checkoutEvent.access.tribune,
-      seat: checkoutEvent.access.seatHint,
-      accessControl: checkoutEvent.access.accessControl,
-      accessRules: checkoutEvent.access.rules,
-      securityCode: createSecurityCode(checkoutEvent, selectedTier),
-    };
+  function addPurchasedTicket(purchasedTicket: PurchasedTicket) {
     setTickets((currentTickets) => [purchasedTicket, ...currentTickets]);
     setActiveTicketId(purchasedTicket.id);
     setSegment("wallet");
     setCheckoutEvent(null);
   }
 
+  function createLocalPurchase(
+    event: TicketEvent,
+    tier: TicketTier,
+  ): PurchasedTicket {
+    const localTotal = tier.price * quantity;
+    return {
+      id: createTicketId(event),
+      eventId: event.id,
+      eventType: event.type,
+      title: event.title,
+      subtitle: event.subtitle,
+      city: event.city,
+      venue: event.venue,
+      date: event.date,
+      time: event.time,
+      tierName: tier.name,
+      quantity,
+      total: localTotal,
+      currency: tier.currency,
+      qrSeed: createQrSeed(event),
+      purchasedAt: new Date().toISOString(),
+      status: "valid",
+      gate: event.access.gate,
+      accessZone: event.access.accessZone,
+      tribune: event.access.tribune,
+      seat: event.access.seatHint,
+      accessControl: event.access.accessControl,
+      accessRules: event.access.rules,
+      securityCode: createSecurityCode(event, tier),
+    };
+  }
+
+  async function confirmCheckout() {
+    if (!checkoutEvent || !selectedTier) return;
+    if (token) {
+      try {
+        const response = await fanpassFetch("/tickets/purchase", token, {
+          method: "POST",
+          body: JSON.stringify({
+            event_id: checkoutEvent.id,
+            tier_id: selectedTier.id,
+            gate_id: checkoutEvent.access.gate.toLowerCase().replace(" ", "-"),
+            quantity,
+          }),
+        });
+        if (response.ok) {
+          const apiTicket = mapApiTicket(await response.json());
+          addPurchasedTicket(apiTicket);
+          return;
+        }
+      } catch {
+        // Fall back to the local prototype purchase below.
+      }
+    }
+
+    addPurchasedTicket(createLocalPurchase(checkoutEvent, selectedTier));
+  }
+
   const navigate = (tab: PrimaryTab) => onNav?.(tab);
+
+  if (showImport) {
+    return (
+      <ImportTicketView
+        onBack={() => setShowImport(false)}
+        onImported={() => {
+          setShowImport(false);
+          void loadRemoteWallet();
+        }}
+      />
+    );
+  }
+
+  if (showScan) {
+    return <ScanView onBack={() => setShowScan(false)} />;
+  }
+
+  if (showAcceptTransfer) {
+    return (
+      <AcceptTransferView
+        onBack={() => setShowAcceptTransfer(false)}
+        onAccepted={() => {
+          setShowAcceptTransfer(false);
+          void loadRemoteWallet();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -714,6 +909,7 @@ export function TicketView({ onNav }: { onNav?: (t: PrimaryTab) => void }) {
           onOpenMatches={() => setSegment("matches")}
           onOpenZones={() => setSegment("zones")}
           onOpenEvents={() => setSegment("events")}
+          onTransferTicket={setTransferTicket}
         />
       ) : (
         <CatalogView events={visibleEvents} onCheckout={openCheckout} />
@@ -724,6 +920,16 @@ export function TicketView({ onNav }: { onNav?: (t: PrimaryTab) => void }) {
           icon={Upload}
           label="Importer un billet"
           onClick={() => setShowImport(true)}
+        />
+        <QuickAction
+          icon={Ticket}
+          label="Recevoir transfert"
+          onClick={() => setShowAcceptTransfer(true)}
+        />
+        <QuickAction
+          icon={ScanLine}
+          label="Scanner demo"
+          onClick={() => setShowScan(true)}
         />
         <QuickAction
           icon={Navigation}
@@ -758,6 +964,14 @@ export function TicketView({ onNav }: { onNav?: (t: PrimaryTab) => void }) {
           onSelectTier={setSelectedTierId}
           onQuantityChange={setQuantity}
           onConfirm={confirmCheckout}
+        />
+      )}
+
+      {transferTicket && (
+        <TransferModal
+          ticketId={transferTicket.apiId ?? transferTicket.id}
+          ticketTitle={transferTicket.title}
+          onClose={() => setTransferTicket(null)}
         />
       )}
     </div>
@@ -804,6 +1018,7 @@ function WalletView({
   onOpenMatches,
   onOpenZones,
   onOpenEvents,
+  onTransferTicket,
 }: {
   activeTicket: PurchasedTicket;
   tickets: PurchasedTicket[];
@@ -811,7 +1026,13 @@ function WalletView({
   onOpenMatches: () => void;
   onOpenZones: () => void;
   onOpenEvents: () => void;
+  onTransferTicket: (ticket: PurchasedTicket) => void;
 }) {
+  function copySignedQr() {
+    if (!activeTicket.qrRaw || typeof navigator === "undefined") return;
+    void navigator.clipboard.writeText(activeTicket.qrRaw);
+  }
+
   return (
     <div className="space-y-4">
       <div className="glass rounded-3xl p-5">
@@ -852,6 +1073,27 @@ function WalletView({
           <SecurityPill icon={ScanLine} label="Contrôle gate" />
           <SecurityPill icon={ShieldCheck} label="Billet sécurisé" />
         </div>
+
+        {(activeTicket.qrRaw || activeTicket.apiId) && (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {activeTicket.qrRaw && (
+              <button
+                onClick={copySignedQr}
+                className="rounded-2xl bg-white/5 px-3 py-3 text-xs font-medium"
+              >
+                Copier QR signe
+              </button>
+            )}
+            {activeTicket.apiId && (
+              <button
+                onClick={() => onTransferTicket(activeTicket)}
+                className="rounded-2xl bg-primary px-3 py-3 text-xs font-medium text-primary-foreground glow-primary"
+              >
+                Transferer
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="mt-5 rounded-2xl bg-white/5 px-4 py-3 text-sm">
           <div className="flex items-center justify-between gap-3">
@@ -1159,4 +1401,49 @@ function CheckoutModal({
             Le QR et les règles d'accès seront ajoutés au wallet.
           </div>
         </div>
-        <div className="mt-5 grid grid-cols-[auto_1fr_aut
+        <div className="mt-5 grid grid-cols-[auto_1fr_auto] gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-2xl bg-white/5 px-4 py-3 text-sm font-medium"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onConfirm}
+            className="rounded-2xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground glow-primary"
+          >
+            Confirmer l'achat
+          </button>
+          <div className="grid place-items-center rounded-2xl bg-white/5 px-4 py-3">
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickAction({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="glass flex items-center gap-3 rounded-2xl p-4 text-left transition hover:bg-white/5"
+    >
+      <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/15">
+        <Icon className="h-5 w-5 text-primary-glow" />
+      </div>
+      <div>
+        <div className="text-sm font-semibold">{label}</div>
+        <div className="label-xs text-muted-foreground">Ouvrir</div>
+      </div>
+    </button>
+  );
+}

@@ -53,6 +53,13 @@ type RoutePreview = {
   title: string;
   detail: string;
 };
+type EventFilter =
+  | "all"
+  | "fan_zone"
+  | "watch_party"
+  | "sponsor"
+  | "club_event"
+  | "community";
 
 const FALLBACK_EVENTS: FanEvent[] = [
   {
@@ -209,7 +216,7 @@ const FALLBACK_EVENTS: FanEvent[] = [
   },
 ];
 
-const CATEGORIES = [
+const CATEGORIES: { id: EventFilter; label: string }[] = [
   { id: "all", label: "Tous" },
   { id: "fan_zone", label: "Fan Zones" },
   { id: "watch_party", label: "Watch" },
@@ -255,7 +262,7 @@ export function EvenementsSection() {
   const { token } = useAuth();
   const ticket = useActiveTicket();
   const [events, setEvents] = useState<FanEvent[]>(FALLBACK_EVENTS);
-  const [category, setCategory] = useState("all");
+  const [category, setCategory] = useState<EventFilter>("all");
   const [selectedId, setSelectedId] = useState(FALLBACK_EVENTS[0].id);
   const [reservedIds, setReservedIds] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -288,6 +295,7 @@ export function EvenementsSection() {
         });
         if (r.ok) setEvents(await r.json());
       } catch {
+        // Keep fallback events if the API is unavailable.
       } finally {
         clearTimeout(t);
         setLoading(false);
@@ -346,9 +354,9 @@ export function EvenementsSection() {
   return (
     <div className="space-y-5">
       <FilterBar
-        items={CATEGORIES.map((c) => ({ id: c.id as any, label: c.label }))}
-        activeId={category as any}
-        onChange={(id: any) => setCategory(id)}
+        items={CATEGORIES}
+        activeId={category}
+        onChange={setCategory}
       />
 
       {/* Selected event detail */}

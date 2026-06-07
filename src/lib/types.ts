@@ -89,12 +89,40 @@ export type CrowdStatus = "Fluide" | "Charge" | "Sature";
 export type GateStatus = "fluide" | "charge" | "sature" | "ferme";
 export type SafetyLevel = "Calme" | "Controle" | "Dense";
 export type AlertSeverity = "info" | "warning" | "critical";
-export type EventCategory = "official" | "watch" | "sponsor" | "club" | "family";
-export type MerchCategory = "official" | "club" | "souvenir" | "local" | "sponsor" | "post2030";
-export type PartnerCategory = "mobility" | "stay" | "food" | "tourism" | "experience" | "premium";
+export type EventCategory =
+  | "official"
+  | "watch"
+  | "sponsor"
+  | "club"
+  | "family";
+export type MerchCategory =
+  | "official"
+  | "club"
+  | "souvenir"
+  | "local"
+  | "sponsor"
+  | "post2030";
+export type PartnerCategory =
+  | "mobility"
+  | "stay"
+  | "food"
+  | "tourism"
+  | "experience"
+  | "premium";
 export type PickupType = "stadium" | "fan_zone" | "event";
 
 // ─── Types pour les groupes de fans ───
-export type FanProfile = "solo" | "family" | "tourist" | "local" | "group" | "calm";
-export type TeamPreference = "Maroc" | "France" | "Bresil" | "Espagne" | "Neutre";
-export type LanguagePreference =
+export type FanProfile =
+  | "solo"
+  | "family"
+  | "tourist"
+  | "local"
+  | "group"
+  | "calm";
+export type TeamPreference =
+  | "Maroc"
+  | "France"
+  | "Bresil"
+  | "Espagne"
+  | "Neutre";
+export type LanguagePreference = "FR" | "EN" | "ES" | "AR";

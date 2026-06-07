@@ -1,13 +1,11 @@
 import {
   ArrowLeft,
-  BadgePercent,
   Check,
   Minus,
   Plus,
   QrCode,
   ShoppingCart,
   Truck,
-  type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";

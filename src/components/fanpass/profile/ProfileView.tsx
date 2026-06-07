@@ -24,7 +24,8 @@ import { Logo } from "@/components/fanpass/shared/Logo";
 type Step = "view" | "edit_info" | "verify_id";
 
 export function ProfileView({ onClose }: { onClose: () => void }) {
-  const { avatarInitials, fanIdStatus, logout, refreshProfile } = useAuth();
+  const { avatarInitials, fanIdStatus, logout, deleteAccount, refreshProfile } =
+    useAuth();
   const [step, setStep] = useState<Step>("view");
   const [editing, setEditing] = useState(false);
 
@@ -62,6 +63,10 @@ export function ProfileView({ onClose }: { onClose: () => void }) {
         logout();
         onClose();
       }}
+      onDelete={async () => {
+        await deleteAccount();
+        onClose();
+      }}
       onClose={onClose}
     />
   );
@@ -73,6 +78,7 @@ function ProfileMain({
   onEdit,
   onVerify,
   onLogout,
+  onDelete,
   onClose,
 }: {
   avatarInitials: string;
@@ -80,6 +86,7 @@ function ProfileMain({
   onEdit: () => void;
   onVerify: () => void;
   onLogout: () => void;
+  onDelete: () => void;
   onClose: () => void;
 }) {
   const verified = fanIdStatus === "verified";
@@ -212,6 +219,21 @@ function ProfileMain({
           className="w-full rounded-2xl bg-destructive/15 text-destructive py-4 text-sm font-medium hover:bg-destructive/25 transition"
         >
           Se déconnecter
+        </button>
+
+        {/* Delete account */}
+        <button
+          onClick={() => {
+            if (
+              confirm(
+                "Supprimer définitivement votre compte ? Cette action est irréversible.",
+              )
+            )
+              onDelete();
+          }}
+          className="w-full rounded-2xl bg-white/5 text-muted-foreground py-3 text-xs font-medium hover:bg-destructive/10 hover:text-destructive transition"
+        >
+          Supprimer mon compte
         </button>
       </main>
     </div>

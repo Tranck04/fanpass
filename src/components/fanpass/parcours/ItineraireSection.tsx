@@ -177,7 +177,9 @@ export function ItineraireSection() {
         signal: AbortSignal.timeout(3000),
       });
       if (r.ok) setRecalculated(await r.json());
-    } catch {}
+    } catch {
+      // Keep the current route if recalculation is unavailable.
+    }
   }
 
   const plan = recalculated?.plan ?? data?.plan ?? fallbackPlan;

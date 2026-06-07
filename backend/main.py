@@ -3,6 +3,7 @@ FanPass API — FastAPI application.
 Dev: SQLite | Prod: PostgreSQL (set DATABASE_URL env var).
 """
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
@@ -20,10 +21,19 @@ app = FastAPI(
     version="0.2.0",
 )
 
-# CORS — allow frontend dev server
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "FANPASS_CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:5173,http://localhost:3001",
+    ).split(",")
+    if origin.strip()
+]
+
+# CORS - allow configured frontend origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:3001"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -265,7 +265,10 @@ export function GateSection() {
               </button>
             </div>
             <div className="mt-5">
-              <QRTicket seed={ticket.title.length * 2030} sizeClassName="w-44" />
+              <QRTicket
+                seed={ticket.title.length * 2030}
+                sizeClassName="w-44"
+              />
             </div>
           </div>
         </div>

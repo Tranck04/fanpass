@@ -17,7 +17,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveTicket } from "@/hooks/useActiveTicket";
 import { MetaBadge } from "@/components/fanpass/shared/MetaBadge";
-import { FilterBar } from "@/components/fanpass/shared/FilterBar";
 import { fanpassFetch } from "@/lib/fanpass-api";
 import type { ActiveTicket } from "@/lib/types";
 
@@ -254,6 +253,7 @@ export function GroupesSection() {
         });
         if (res.ok) setGroups(await res.json());
       } catch {
+        // Keep fallback groups if the API is unavailable.
       } finally {
         clearTimeout(t);
         setLoading(false);
@@ -725,4 +725,27 @@ function CreateGroupModal({
               value={meetTime}
               onChange={(e) => setMeetTime(e.target.value)}
               placeholder="17:25"
-              className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm placeholder:text-m
+              className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40"
+            />
+          </div>
+          <div>
+            <label className="label-xs text-muted-foreground block mb-2">
+              Capacité max
+            </label>
+            <input
+              value={capacity}
+              onChange={(e) => setCapacity(e.target.value)}
+              placeholder="50"
+              type="number"
+              className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm"
+            />
+          </div>
+        </div>
+        <div className="rounded-2xl bg-primary/10 p-4 text-xs text-muted-foreground">
+          Votre groupe sera soumis à vérification avant d'apparaître dans les
+          recommandations.
+        </div>
+      </main>
+    </div>
+  );
+}
