@@ -125,6 +125,14 @@ async function apiFetch(
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(readStoredAuth);
 
+  // After SSR hydration, isLoading may be stuck at true because
+  // readStoredAuth() returns isLoading:true on the server and React
+  // reuses that server state during hydration. This effect ensures
+  // the loading flag is cleared once the client takes over.
+  useEffect(() => {
+    setState((prev) => ({ ...prev, isLoading: false }));
+  }, []);
+
   useEffect(() => {
     saveAuth(state);
   }, [state]);

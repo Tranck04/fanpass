@@ -95,6 +95,9 @@ async function apiFetch(path, options = {}, token) {
 function AuthProvider({ children }) {
   const [state, setState] = reactExports.useState(readStoredAuth);
   reactExports.useEffect(() => {
+    setState((prev) => ({ ...prev, isLoading: false }));
+  }, []);
+  reactExports.useEffect(() => {
     saveAuth(state);
   }, [state]);
   const login = reactExports.useCallback(async (email, password) => {
