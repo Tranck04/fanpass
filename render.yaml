@@ -7,7 +7,9 @@ services:
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        value: sqlite:///fanpass.db
+        fromDatabase:
+          name: fanpass-db
+          property: connectionString
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: QR_SECRET_KEY
@@ -16,3 +18,9 @@ services:
         # Remplace par ton vrai domaine custom quand tu l'auras
         value: "https://fanpass-app.netlify.app/"
     plan: free
+
+databases:
+  - name: fanpass-db
+    plan: free
+    databaseName: fanpass
+    ipAllowList: []

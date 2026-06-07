@@ -6,6 +6,7 @@ python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.19
 aiosqlite>=0.20.0
+psycopg2-binary>=2.9.9
 mrz>=0.5.5
 Pillow>=10.0.0
 bcrypt>=4.0.0
