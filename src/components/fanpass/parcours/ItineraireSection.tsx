@@ -13,10 +13,13 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { GateAwareMap } from "./GateAwareMap";
 import { fanpassFetch } from "@/lib/fanpass-api";
+
+const GateAwareMap = lazy(() =>
+  import("./GateAwareMap").then((m) => ({ default: m.GateAwareMap })),
+);
 
 type GatePlan = {
   gate_id: string;
@@ -248,7 +251,17 @@ export function ItineraireSection() {
             {statusLabel(plan.crowd_status)}
           </span>
         </div>
-        <GateAwareMap plan={plan} gateCode={gateCode} />
+        <Suspense
+          fallback={
+            <div className="mt-4 h-80 rounded-2xl bg-white/5 animate-pulse flex items-center justify-center">
+              <span className="text-sm text-muted-foreground">
+                Chargement de la carte...
+              </span>
+            </div>
+          }
+        >
+          <GateAwareMap plan={plan} gateCode={gateCode} />
+        </Suspense>
       </div>
 
       <div className="grid gap-3">
