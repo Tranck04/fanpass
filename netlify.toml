@@ -1,5 +1,5 @@
 [build]
-  command = "npm install && npm run build"
+  command = "npm ci && npm run build"
   publish = ".output/public"
 
 [[redirects]]
@@ -9,3 +9,4 @@
 
 [build.environment]
   VITE_FANPASS_API_BASE = "https://fanpass-api.onrender.com/api"
+  NODE_VERSION = "20"
