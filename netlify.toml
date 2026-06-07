@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build"
+  command = "npm ci && npx vite build"
   publish = ".output/public"
 
 [[redirects]]
@@ -8,4 +8,4 @@
   status = 200
 
 [build.environment]
-  VITE_FANPASS_API_BASE = "https://fanpass-api.onrender.com/api"
+  VITE_FANPASS_API_BASE = "https://fanpass-s8hb.onrender.com"
