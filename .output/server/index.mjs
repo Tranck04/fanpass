@@ -85,33 +85,40 @@ const headers = ((m) => function headersRouteRule(event) {
   }
 });
 const assets = {
-  "/assets/index-CIGW-MKW.css": {
+  "/assets/GateAwareMap-CIGW-MKW.css": {
     "type": "text/css; charset=utf-8",
     "etag": '"3cf7-GSfYBurqLbmcVM5PnUOstAgC2rk"',
-    "mtime": "2026-06-07T10:12:21.567Z",
+    "mtime": "2026-06-07T10:37:21.290Z",
     "size": 15607,
-    "path": "../public/assets/index-CIGW-MKW.css"
+    "path": "../public/assets/GateAwareMap-CIGW-MKW.css"
   },
-  "/assets/styles-B-Etngqb.css": {
-    "type": "text/css; charset=utf-8",
-    "etag": '"1a8d1-M5h6TBuMwGr08QokNBgCg6gdA3Y"',
-    "mtime": "2026-06-07T10:12:21.567Z",
-    "size": 108753,
-    "path": "../public/assets/styles-B-Etngqb.css"
+  "/assets/GateAwareMap-ClzhUvGl.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": '"26a03-vmC0lQfTAWDUPHe3KCcCQzy+pSM"',
+    "mtime": "2026-06-07T10:37:21.291Z",
+    "size": 158211,
+    "path": "../public/assets/GateAwareMap-ClzhUvGl.js"
   },
   "/assets/stadium-hero-LHPVA9f_.jpg": {
     "type": "image/jpeg",
     "etag": '"36338-6Dm9vFvrhmJm4uNqly4Fx2RvCII"',
-    "mtime": "2026-06-07T10:12:21.565Z",
+    "mtime": "2026-06-07T10:37:21.289Z",
     "size": 222008,
     "path": "../public/assets/stadium-hero-LHPVA9f_.jpg"
   },
-  "/assets/index-BvCEj4MP.js": {
+  "/assets/styles-B-Etngqb.css": {
+    "type": "text/css; charset=utf-8",
+    "etag": '"1a8d1-M5h6TBuMwGr08QokNBgCg6gdA3Y"',
+    "mtime": "2026-06-07T10:37:21.290Z",
+    "size": 108753,
+    "path": "../public/assets/styles-B-Etngqb.css"
+  },
+  "/assets/index-CrTcHoT0.js": {
     "type": "text/javascript; charset=utf-8",
-    "etag": '"aa5d3-iDoXoOwdtdWBZ6qVpyaPIjgxP+g"',
-    "mtime": "2026-06-07T10:12:21.566Z",
-    "size": 697811,
-    "path": "../public/assets/index-BvCEj4MP.js"
+    "etag": '"83bdf-OqpTYWDiQmYr/SNGEVXhU/u5g/c"',
+    "mtime": "2026-06-07T10:37:21.291Z",
+    "size": 539615,
+    "path": "../public/assets/index-CrTcHoT0.js"
   }
 };
 function readAsset(id) {
