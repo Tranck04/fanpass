@@ -1,4 +1,4 @@
-const DEFAULT_PROD_API_BASE = "https://fanpass-api.onrender.com/api";
+const DEFAULT_PROD_API_BASE = "https://fanpass-s8hb.onrender.com/api";
 const DEFAULT_LOCAL_API_BASE = "http://localhost:8000/api";
 
 function resolveApiBase() {

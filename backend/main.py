@@ -22,7 +22,7 @@ app = FastAPI(
 )
 
 allowed_origins = [
-    origin.strip()
+    origin.strip().rstrip("/")
     for origin in os.getenv(
         "FANPASS_CORS_ORIGINS",
         "http://localhost:3000,http://localhost:5173,http://localhost:3001,http://localhost:4173,http://localhost:4174,http://localhost:4175",
@@ -34,6 +34,7 @@ allowed_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.netlify\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
