@@ -9,4 +9,4 @@
 
 [build.environment]
   VITE_FANPASS_API_BASE = "https://fanpass-api.onrender.com/api"
-  NODE_VERSION = "20"
+  NODE_VERSION = "22"
