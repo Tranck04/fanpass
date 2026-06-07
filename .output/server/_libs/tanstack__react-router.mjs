@@ -1,8 +1,9 @@
 import { r as reactExports, j as jsxRuntimeExports, R as React } from "./react.mjs";
-import { i as invariant, a as isDangerousProtocol, e as exactPathTest, r as removeTrailingSlash, h as hasKeys, d as deepEqual, f as functionalUpdate, B as BaseRootRoute, b as BaseRoute, c as isNotFound, g as getScrollRestorationScriptForRouter, j as rootRouteId, k as isServer, l as isRedirect, m as createNonReactiveReadonlyStore, n as createNonReactiveMutableStore, R as RouterCore, o as escapeHtml, p as getAssetCrossOrigin, q as getScriptPreloadAttrs, s as appendUniqueUserTags, t as resolveManifestCssLink, u as transformReadableStreamWithRouter, v as createSsrStreamResponse, w as transformPipeableStreamWithRouter } from "./tanstack__router-core.mjs";
+import { i as invariant, a as isDangerousProtocol, e as exactPathTest, r as removeTrailingSlash, h as hasKeys, d as deepEqual, f as functionalUpdate, B as BaseRootRoute, b as BaseRoute, c as isModuleNotFoundError, g as isNotFound, j as getScrollRestorationScriptForRouter, k as rootRouteId, l as isServer, m as isRedirect, n as createNonReactiveReadonlyStore, o as createNonReactiveMutableStore, R as RouterCore, p as escapeHtml, q as getAssetCrossOrigin, s as getScriptPreloadAttrs, t as appendUniqueUserTags, u as resolveManifestCssLink, v as transformReadableStreamWithRouter, w as createSsrStreamResponse, x as transformPipeableStreamWithRouter } from "./tanstack__router-core.mjs";
 import { R as ReactDOMServer } from "./react-dom.mjs";
 import { PassThrough } from "node:stream";
 import { i as isbot } from "./isbot.mjs";
+var reactUse = reactExports.use;
 function useForwardedRef(ref) {
   const innerRef = reactExports.useRef(null);
   reactExports.useImperativeHandle(ref, () => innerRef.current, []);
@@ -496,6 +497,43 @@ var FileRoute = class {
     this.silent = _opts?.silent;
   }
 };
+function lazyRouteComponent(importer, exportName) {
+  let loadPromise;
+  let comp;
+  let error;
+  let reload;
+  const load = () => {
+    if (!loadPromise) loadPromise = importer().then((res) => {
+      loadPromise = void 0;
+      comp = res[exportName];
+    }).catch((err) => {
+      error = err;
+      if (isModuleNotFoundError(error)) {
+        if (error instanceof Error && typeof window !== "undefined" && typeof sessionStorage !== "undefined") {
+          const storageKey = `tanstack_router_reload:${error.message}`;
+          if (!sessionStorage.getItem(storageKey)) {
+            sessionStorage.setItem(storageKey, "1");
+            reload = true;
+          }
+        }
+      }
+    });
+    return loadPromise;
+  };
+  const lazyComp = function Lazy(props) {
+    if (reload) {
+      window.location.reload();
+      throw new Promise(() => {
+      });
+    }
+    if (error) throw error;
+    if (!comp) if (reactUse) reactUse(load());
+    else throw load();
+    return reactExports.createElement(comp, props);
+  };
+  lazyComp.preload = load;
+  return lazyComp;
+}
 function CatchNotFound(props) {
   const router = useRouter();
   {
@@ -1134,6 +1172,7 @@ export {
   createRootRouteWithContext as a,
   createFileRoute as b,
   createRouter as c,
+  lazyRouteComponent as l,
   renderRouterToStream as r,
   useRouter as u
 };

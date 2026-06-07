@@ -5,6 +5,7 @@ services:
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -16,7 +17,7 @@ services:
         generateValue: true
       - key: FANPASS_CORS_ORIGINS
         # Remplace par ton vrai domaine custom quand tu l'auras
-        value: "https://fanpass-app.netlify.app/"
+        value: "https://fanpass-app.netlify.app,http://localhost:3000,http://localhost:5173,http://localhost:4173"
     plan: free
 
 databases:

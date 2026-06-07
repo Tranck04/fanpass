@@ -85,6 +85,10 @@ function createControlledPromise(onResolve) {
   };
   return controlledPromise;
 }
+function isModuleNotFoundError(error) {
+  if (typeof error?.message !== "string") return false;
+  return error.message.startsWith("Failed to fetch dynamically imported module") || error.message.startsWith("error loading dynamically imported module") || error.message.startsWith("Importing a module script failed");
+}
 function isPromise(value) {
   return Boolean(value && typeof value === "object" && typeof value.then === "function");
 }
@@ -4676,46 +4680,47 @@ function getScrollRestorationScriptForRouter(router) {
   return getScrollRestorationScript(userKey);
 }
 export {
-  getOrigin as A,
+  getNormalizedURL as A,
   BaseRootRoute as B,
-  normalizeSsrResponse as C,
-  attachRouterServerSsrUtils as D,
-  createSerializationAdapter as E,
-  createRawStreamRPCPlugin as F,
-  isResolvedRedirect as G,
-  replaceSsrResponse as H,
-  mergeHeaders as I,
-  executeRewriteInput as J,
-  stripSsrResponseBody as K,
-  defaultSerovalPlugins as L,
-  makeSerovalPlugin as M,
-  getStylesheetHref as N,
-  isSsrResponse as O,
+  getOrigin as C,
+  normalizeSsrResponse as D,
+  attachRouterServerSsrUtils as E,
+  createSerializationAdapter as F,
+  createRawStreamRPCPlugin as G,
+  isResolvedRedirect as H,
+  replaceSsrResponse as I,
+  mergeHeaders as J,
+  executeRewriteInput as K,
+  stripSsrResponseBody as L,
+  defaultSerovalPlugins as M,
+  makeSerovalPlugin as N,
+  getStylesheetHref as O,
+  isSsrResponse as P,
   RouterCore as R,
   isDangerousProtocol as a,
   BaseRoute as b,
-  isNotFound as c,
+  isModuleNotFoundError as c,
   deepEqual as d,
   exactPathTest as e,
   functionalUpdate as f,
-  getScrollRestorationScriptForRouter as g,
+  isNotFound as g,
   hasKeys as h,
   invariant as i,
-  rootRouteId as j,
-  isServer as k,
-  isRedirect as l,
-  createNonReactiveReadonlyStore as m,
-  createNonReactiveMutableStore as n,
-  escapeHtml as o,
-  getAssetCrossOrigin as p,
-  getScriptPreloadAttrs as q,
+  getScrollRestorationScriptForRouter as j,
+  rootRouteId as k,
+  isServer as l,
+  isRedirect as m,
+  createNonReactiveReadonlyStore as n,
+  createNonReactiveMutableStore as o,
+  escapeHtml as p,
+  getAssetCrossOrigin as q,
   removeTrailingSlash as r,
-  appendUniqueUserTags as s,
-  resolveManifestCssLink as t,
-  transformReadableStreamWithRouter as u,
-  createSsrStreamResponse as v,
-  transformPipeableStreamWithRouter as w,
-  defineHandlerCallback as x,
-  resolveManifestAssetLink as y,
-  getNormalizedURL as z
+  getScriptPreloadAttrs as s,
+  appendUniqueUserTags as t,
+  resolveManifestCssLink as u,
+  transformReadableStreamWithRouter as v,
+  createSsrStreamResponse as w,
+  transformPipeableStreamWithRouter as x,
+  defineHandlerCallback as y,
+  resolveManifestAssetLink as z
 };
